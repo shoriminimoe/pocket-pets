@@ -1,5 +1,15 @@
-#!/usr/bin/env python3
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.11"
+# dependencies = ["Pillow>=10"]
+# ///
 """Fetch and verify the bundled cat sprite sheet.
+
+Run directly with uv:
+
+    uv run tools/fetch_cat_sprites.py
+    # or, since the shebang invokes uv:
+    ./tools/fetch_cat_sprites.py
 
 Tries candidates in priority order. CC0 preferred; CC-BY accepted with
 ATTRIBUTION.md. Writes the chosen PNG to
