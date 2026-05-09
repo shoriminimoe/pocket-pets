@@ -27,8 +27,9 @@ data class FlagsSnapshot(
     val timeAccelerationEnabled: Boolean,
 )
 
-class SettingsDataStore(private val context: Context) {
-
+class SettingsDataStore(
+    private val context: Context,
+) {
     private object Keys {
         val MASTER = booleanPreferencesKey("notif_master_on")
         val HUNGRY = booleanPreferencesKey("notif_hungry_on")
@@ -38,23 +39,29 @@ class SettingsDataStore(private val context: Context) {
         val QUIET_END = intPreferencesKey("quiet_end_hour")
         val LAST_SEEN_PET = longPreferencesKey("last_seen_pet_id")
         val TIME_ACCEL = booleanPreferencesKey("time_acceleration_enabled")
-        fun notifyFlag(petId: Long, kind: String) = booleanPreferencesKey("notif_flag_${petId}_$kind")
+
+        fun notifyFlag(
+            petId: Long,
+            kind: String,
+        ) = booleanPreferencesKey("notif_flag_${petId}_$kind")
     }
 
-    val snapshot: Flow<FlagsSnapshot> = context.dataStore.data.map { prefs ->
-        FlagsSnapshot(
-            notificationSettings = NotificationSettings(
-                masterOn = prefs[Keys.MASTER] ?: true,
-                hungryOn = prefs[Keys.HUNGRY] ?: true,
-                dirtyOn = prefs[Keys.DIRTY] ?: true,
-                sadOn = prefs[Keys.SAD] ?: true,
-                quietStartHour = prefs[Keys.QUIET_START] ?: 22,
-                quietEndHour = prefs[Keys.QUIET_END] ?: 7,
-            ),
-            lastSeenPetId = prefs[Keys.LAST_SEEN_PET],
-            timeAccelerationEnabled = prefs[Keys.TIME_ACCEL] ?: false,
-        )
-    }
+    val snapshot: Flow<FlagsSnapshot> =
+        context.dataStore.data.map { prefs ->
+            FlagsSnapshot(
+                notificationSettings =
+                    NotificationSettings(
+                        masterOn = prefs[Keys.MASTER] ?: true,
+                        hungryOn = prefs[Keys.HUNGRY] ?: true,
+                        dirtyOn = prefs[Keys.DIRTY] ?: true,
+                        sadOn = prefs[Keys.SAD] ?: true,
+                        quietStartHour = prefs[Keys.QUIET_START] ?: 22,
+                        quietEndHour = prefs[Keys.QUIET_END] ?: 7,
+                    ),
+                lastSeenPetId = prefs[Keys.LAST_SEEN_PET],
+                timeAccelerationEnabled = prefs[Keys.TIME_ACCEL] ?: false,
+            )
+        }
 
     suspend fun setNotificationSettings(s: NotificationSettings) {
         context.dataStore.edit {
@@ -75,10 +82,19 @@ class SettingsDataStore(private val context: Context) {
         context.dataStore.edit { it[Keys.TIME_ACCEL] = on }
     }
 
-    suspend fun isNotifyFlagSet(petId: Long, kind: String): Boolean =
-        context.dataStore.data.map { it[Keys.notifyFlag(petId, kind)] ?: false }.first()
+    suspend fun isNotifyFlagSet(
+        petId: Long,
+        kind: String,
+    ): Boolean =
+        context.dataStore.data
+            .map { it[Keys.notifyFlag(petId, kind)] ?: false }
+            .first()
 
-    suspend fun setNotifyFlag(petId: Long, kind: String, value: Boolean) {
+    suspend fun setNotifyFlag(
+        petId: Long,
+        kind: String,
+        value: Boolean,
+    ) {
         context.dataStore.edit { it[Keys.notifyFlag(petId, kind)] = value }
     }
 }

@@ -33,19 +33,28 @@ fun AppNav() {
     val container = (context.applicationContext as PocketPetsApp).container
     val nav = rememberNavController()
 
-    val petsAtStart = container.petRepository.observeAll().collectAsState(initial = emptyList()).value
+    val petsAtStart =
+        container.petRepository
+            .observeAll()
+            .collectAsState(initial = emptyList())
+            .value
     val start = if (petsAtStart.isEmpty()) "adopt" else "pet"
 
     NavHost(navController = nav, startDestination = start) {
         composable("adopt") {
-            val vm: AdoptViewModel = viewModel(
-                factory = viewModelFactory {
-                initializer { AdoptViewModel(container.petRepository) }
-            }
+            val vm: AdoptViewModel =
+                viewModel(
+                    factory =
+                        viewModelFactory {
+                            initializer { AdoptViewModel(container.petRepository) }
+                        },
+                )
+            AdoptPetScreen(
+                vm = vm,
+                onAdopt = { _ ->
+                    nav.navigate("pet") { popUpTo("adopt") { inclusive = true } }
+                },
             )
-            AdoptPetScreen(vm) { _ ->
-                nav.navigate("pet") { popUpTo("adopt") { inclusive = true } }
-            }
         }
         composable("pet") {
             var sheetOpen by remember { mutableStateOf(false) }
@@ -53,23 +62,27 @@ fun AppNav() {
             LaunchedEffect(deepLinkId) {
                 if (deepLinkId != null) container.petRepository.setActive(deepLinkId)
             }
-            val petVm: PetViewModel = viewModel(
-                factory = viewModelFactory {
-                initializer {
-                    PetViewModel(
-                        repo = container.petRepository,
-                        clock = container.clock,
-                        zone = TimeZone.currentSystemDefault(),
-                        speech = CatSpeech,
-                    )
-                }
-            }
-            )
-            val selVm: PetSelectorViewModel = viewModel(
-                factory = viewModelFactory {
-                initializer { PetSelectorViewModel(container.petRepository) }
-            }
-            )
+            val petVm: PetViewModel =
+                viewModel(
+                    factory =
+                        viewModelFactory {
+                            initializer {
+                                PetViewModel(
+                                    repo = container.petRepository,
+                                    clock = container.clock,
+                                    zone = TimeZone.currentSystemDefault(),
+                                    speech = CatSpeech,
+                                )
+                            }
+                        },
+                )
+            val selVm: PetSelectorViewModel =
+                viewModel(
+                    factory =
+                        viewModelFactory {
+                            initializer { PetSelectorViewModel(container.petRepository) }
+                        },
+                )
             PetScreen(
                 vm = petVm,
                 onOpenSettings = { nav.navigate("settings") },
@@ -78,7 +91,7 @@ fun AppNav() {
             if (sheetOpen) {
                 PetSelectorSheet(
                     vm = selVm,
-                    onSelected = { sheetOpen = false },
+                    onSelect = { sheetOpen = false },
                     onAdopt = {
                         sheetOpen = false
                         nav.navigate("adopt")
@@ -88,11 +101,13 @@ fun AppNav() {
             }
         }
         composable("settings") {
-            val vm: SettingsViewModel = viewModel(
-                factory = viewModelFactory {
-                initializer { SettingsViewModel(container.settings) }
-            }
-            )
+            val vm: SettingsViewModel =
+                viewModel(
+                    factory =
+                        viewModelFactory {
+                            initializer { SettingsViewModel(container.settings) }
+                        },
+                )
             SettingsScreen(vm)
         }
     }

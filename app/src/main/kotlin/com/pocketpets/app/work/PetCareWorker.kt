@@ -15,15 +15,16 @@ class PetCareWorker(
     private val settings: SettingsDataStore,
     private val notifications: NotificationHelper,
 ) : CoroutineWorker(appContext, params) {
-
     constructor(appContext: Context, params: WorkerParameters) : this(
-        appContext, params,
+        appContext,
+        params,
         repo = (appContext.applicationContext as PocketPetsApp).container.petRepository,
         settings = (appContext.applicationContext as PocketPetsApp).container.settings,
-        notifications = NotificationHelper(
-            appContext,
-            (appContext.applicationContext as PocketPetsApp).container.settings,
-        ),
+        notifications =
+            NotificationHelper(
+                appContext,
+                (appContext.applicationContext as PocketPetsApp).container.settings,
+            ),
     )
 
     override suspend fun doWork(): Result {

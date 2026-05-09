@@ -8,4 +8,13 @@ plugins {
 
 subprojects {
     apply(plugin = "org.jlleitschuh.gradle.ktlint")
+
+    extensions.configure<org.jlleitschuh.gradle.ktlint.KtlintExtension> {
+        version.set("1.5.0")
+    }
+
+    // Compose-aware ktlint rules so @Composable PascalCase doesn't fail function-naming.
+    dependencies {
+        add("ktlintRuleset", rootProject.libs.compose.ktlint.rules)
+    }
 }

@@ -1,13 +1,16 @@
 package com.pocketpets.app.work
 
+import android.Manifest
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
+import androidx.core.content.ContextCompat
 import com.pocketpets.app.MainActivity
 import com.pocketpets.app.data.settings.NotificationSettings
 import com.pocketpets.app.data.settings.SettingsDataStore
@@ -37,20 +40,29 @@ class NotificationHelper(
             if (nm.getNotificationChannel(CHANNEL_ID) == null) {
                 nm.createNotificationChannel(
                     NotificationChannel(CHANNEL_ID, "Pet care", NotificationManager.IMPORTANCE_DEFAULT)
-                        .apply { description = "Reminders when a pet needs care." }
+                        .apply { description = "Reminders when a pet needs care." },
                 )
             }
         }
     }
 
     /** Returns the kinds of events that fired (for tests). */
-    suspend fun maybeNotify(pet: Pet, ns: NotificationSettings): List<String> {
+    suspend fun maybeNotify(
+        pet: Pet,
+        ns: NotificationSettings,
+    ): List<String> {
         if (!ns.masterOn) return emptyList()
         if (inQuietHours(ns)) return emptyList()
         ensureChannel()
         val fired = mutableListOf<String>()
 
-        suspend fun handle(kind: String, isLow: Boolean, isHigh: Boolean, on: Boolean, message: String) {
+        suspend fun handle(
+            kind: String,
+            isLow: Boolean,
+            isHigh: Boolean,
+            on: Boolean,
+            message: String,
+        ) {
             val flag = settings.isNotifyFlagSet(pet.id, kind)
             if (isLow && !flag && on) {
                 post(pet.id, kind, message)
@@ -66,21 +78,21 @@ class NotificationHelper(
             isLow = pet.stats.hunger < LOW_THRESHOLD,
             isHigh = pet.stats.hunger >= LOW_THRESHOLD + HYSTERESIS,
             on = ns.hungryOn,
-            message = "${pet.name} is hungry!"
+            message = "${pet.name} is hungry!",
         )
         handle(
             EVT_DIRTY,
             isLow = pet.stats.cleanliness < LOW_THRESHOLD || pet.poopCount >= 2,
             isHigh = pet.stats.cleanliness >= LOW_THRESHOLD + HYSTERESIS && pet.poopCount < 2,
             on = ns.dirtyOn,
-            message = "${pet.name} needs cleaning!"
+            message = "${pet.name} needs cleaning!",
         )
         handle(
             EVT_SAD,
             isLow = pet.stats.happiness < LOW_THRESHOLD,
             isHigh = pet.stats.happiness >= LOW_THRESHOLD + HYSTERESIS,
             on = ns.sadOn,
-            message = "${pet.name} misses you"
+            message = "${pet.name} misses you",
         )
 
         return fired
@@ -95,23 +107,42 @@ class NotificationHelper(
         }
     }
 
-    private fun post(petId: Long, kind: String, message: String) {
-        val intent = Intent(context, MainActivity::class.java).apply {
-            putExtra("petId", petId)
-            flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+    private fun post(
+        petId: Long,
+        kind: String,
+        message: String,
+    ) {
+        val intent =
+            Intent(context, MainActivity::class.java).apply {
+                putExtra("petId", petId)
+                flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+            }
+        val pi =
+            PendingIntent.getActivity(
+                context,
+                "$petId$kind".hashCode(),
+                intent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+            )
+        val notif =
+            NotificationCompat
+                .Builder(context, CHANNEL_ID)
+                .setSmallIcon(android.R.drawable.sym_def_app_icon)
+                .setContentTitle("Pocket Pets")
+                .setContentText(message)
+                .setContentIntent(pi)
+                .setAutoCancel(true)
+                .build()
+        // POST_NOTIFICATIONS is only enforced from Android 13 (API 33). Below
+        // that, the runtime grants it implicitly.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.POST_NOTIFICATIONS,
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            return
         }
-        val pi = PendingIntent.getActivity(
-            context, "$petId$kind".hashCode(),
-            intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
-        )
-        val notif = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.sym_def_app_icon)
-            .setContentTitle("Pocket Pets")
-            .setContentText(message)
-            .setContentIntent(pi)
-            .setAutoCancel(true)
-            .build()
-        runCatching { NotificationManagerCompat.from(context).notify("$petId$kind".hashCode(), notif) }
+        NotificationManagerCompat.from(context).notify("$petId$kind".hashCode(), notif)
     }
 }

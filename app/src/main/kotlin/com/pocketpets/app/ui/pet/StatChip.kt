@@ -17,7 +17,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 
 @Composable
-fun StatChip(label: String, value: Float, color: Color, modifier: Modifier = Modifier) {
+fun StatChip(
+    label: String,
+    value: Float,
+    color: Color,
+    modifier: Modifier = Modifier,
+) {
     val pct = (value / 100f).coerceIn(0f, 1f)
     Row(
         modifier = modifier.padding(horizontal = 4.dp),
@@ -25,17 +30,20 @@ fun StatChip(label: String, value: Float, color: Color, modifier: Modifier = Mod
     ) {
         Text(label)
         Box(
-            modifier = Modifier
-                .padding(start = 4.dp)
-                .width(48.dp).height(8.dp)
-                .clip(RoundedCornerShape(4.dp))
-                .background(Color(0x331A1A2E)),
+            modifier =
+                Modifier
+                    .padding(start = 4.dp)
+                    .width(48.dp)
+                    .height(8.dp)
+                    .clip(RoundedCornerShape(4.dp))
+                    .background(Color(0x331A1A2E)),
         ) {
             Box(
-                modifier = Modifier
-                    .fillMaxWidth(pct)
-                    .height(8.dp)
-                    .background(color),
+                modifier =
+                    Modifier
+                        .fillMaxWidth(pct)
+                        .height(8.dp)
+                        .background(color),
             )
         }
     }

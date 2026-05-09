@@ -15,7 +15,9 @@ data class AdoptState(
     val canSubmit: Boolean = false,
 )
 
-class AdoptViewModel(private val repo: PetRepo) : ViewModel() {
+class AdoptViewModel(
+    private val repo: PetRepo,
+) : ViewModel() {
     private val _state = MutableStateFlow(AdoptState())
     val state: StateFlow<AdoptState> = _state
 

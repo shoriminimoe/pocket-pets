@@ -6,6 +6,7 @@ import org.junit.Test
 
 class StatDecayTest {
     private val t0 = Instant.parse("2026-01-01T12:00:00Z")
+
     private fun pet(
         hunger: Float = 100f,
         cleanliness: Float = 100f,
@@ -15,13 +16,18 @@ class StatDecayTest {
         lastTickAt: Instant = t0,
         lastFedAt: Instant? = null,
     ) = Pet(
-        id = 1, name = "Test", species = Species.CAT,
-        bornAt = t0, stats = PetStats(hunger, cleanliness, happiness, energy),
-        lastTickAt = lastTickAt, isActive = true,
-        poopCount = poopCount, lastFedAt = lastFedAt,
+        id = 1,
+        name = "Test",
+        species = Species.CAT,
+        bornAt = t0,
+        stats = PetStats(hunger, cleanliness, happiness, energy),
+        lastTickAt = lastTickAt,
+        isActive = true,
+        poopCount = poopCount,
+        lastFedAt = lastFedAt,
     )
-    private fun Instant.plusHours(h: Int) =
-        Instant.fromEpochMilliseconds(toEpochMilliseconds() + h * 3_600_000L)
+
+    private fun Instant.plusHours(h: Int) = Instant.fromEpochMilliseconds(toEpochMilliseconds() + h * 3_600_000L)
 
     @Test fun `no time elapsed = no change`() {
         val p = pet()

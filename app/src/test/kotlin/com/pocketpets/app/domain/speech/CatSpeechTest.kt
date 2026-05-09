@@ -2,8 +2,8 @@ package com.pocketpets.app.domain.speech
 
 import com.google.common.truth.Truth.assertThat
 import com.pocketpets.app.domain.Mood
-import kotlin.random.Random
 import org.junit.Test
+import kotlin.random.Random
 
 class CatSpeechTest {
     @Test fun `every mood has at least 4 phrases`() {

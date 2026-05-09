@@ -7,14 +7,17 @@ import com.pocketpets.app.data.repo.PetRepository
 import com.pocketpets.app.data.settings.SettingsDataStore
 import kotlinx.datetime.Clock
 
-class AppContainer(context: Context) {
+class AppContainer(
+    context: Context,
+) {
     private val appContext = context.applicationContext
 
     val clock: Clock = Clock.System
 
     val database: AppDatabase by lazy {
-        Room.databaseBuilder(appContext, AppDatabase::class.java, "pocket_pets.db")
-            .fallbackToDestructiveMigration()
+        Room
+            .databaseBuilder(appContext, AppDatabase::class.java, "pocket_pets.db")
+            .fallbackToDestructiveMigration(dropAllTables = true)
             .build()
     }
 

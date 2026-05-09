@@ -1,3 +1,5 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -5,14 +7,20 @@ plugins {
     alias(libs.plugins.ksp)
 }
 
+kotlin {
+    compilerOptions {
+        jvmTarget.set(JvmTarget.JVM_17)
+    }
+}
+
 android {
     namespace = "com.pocketpets.app"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.pocketpets.app"
         minSdk = 24
-        targetSdk = 35
+        targetSdk = 36
         versionCode = (project.findProperty("releaseVersionCode") as String?)?.toInt() ?: 1
         versionName = "0.2.0" // x-release-please-version
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -36,17 +44,17 @@ android {
 
     lint {
         abortOnError = true
-        warningsAsErrors = false
+        warningsAsErrors = true
         checkReleaseBuilds = true
-        baseline = file("lint-baseline.xml")
+        // AGP 9.x is a major-version migration (Gradle 9.4+, Kotlin 2.2+,
+        // breaking DSL changes) that requires its own dedicated PR. We track
+        // 8.9.x patch updates and will revisit AGP 9 separately.
+        disable += "AndroidGradlePluginVersion"
     }
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
-    }
-    kotlinOptions {
-        jvmTarget = "17"
     }
 
     sourceSets["main"].kotlin.srcDir("src/main/kotlin")

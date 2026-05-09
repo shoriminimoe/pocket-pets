@@ -27,7 +27,7 @@ import com.pocketpets.app.domain.Pet
 @Composable
 fun PetSelectorSheet(
     vm: PetSelectorViewModel,
-    onSelected: () -> Unit,
+    onSelect: () -> Unit,
     onAdopt: () -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -39,15 +39,17 @@ fun PetSelectorSheet(
             Spacer(Modifier.padding(4.dp))
             pets.forEach { pet ->
                 PetRow(pet, isActive = pet.isActive) {
-                    vm.select(pet.id); onSelected()
+                    vm.select(pet.id)
+                    onSelect()
                 }
                 HorizontalDivider()
             }
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { onAdopt() }
-                    .padding(vertical = 16.dp),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .clickable { onAdopt() }
+                        .padding(vertical = 16.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.Center,
             ) {
@@ -58,12 +60,17 @@ fun PetSelectorSheet(
 }
 
 @Composable
-private fun PetRow(pet: Pet, isActive: Boolean, onClick: () -> Unit) {
+private fun PetRow(
+    pet: Pet,
+    isActive: Boolean,
+    onClick: () -> Unit,
+) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(vertical = 12.dp),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onClick)
+                .padding(vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(if (isActive) "★" else "  ")
