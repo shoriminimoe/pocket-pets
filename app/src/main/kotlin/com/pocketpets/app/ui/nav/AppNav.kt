@@ -13,6 +13,8 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.compose.runtime.LaunchedEffect
+import com.pocketpets.app.LocalDeepLinkPetId
 import com.pocketpets.app.PocketPetsApp
 import com.pocketpets.app.domain.speech.CatSpeech
 import com.pocketpets.app.ui.adopt.AdoptPetScreen
@@ -45,6 +47,10 @@ fun AppNav() {
         }
         composable("pet") {
             var sheetOpen by remember { mutableStateOf(false) }
+            val deepLinkId = LocalDeepLinkPetId.current
+            LaunchedEffect(deepLinkId) {
+                if (deepLinkId != null) container.petRepository.setActive(deepLinkId)
+            }
             val petVm: PetViewModel = viewModel(factory = viewModelFactory {
                 initializer {
                     PetViewModel(

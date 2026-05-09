@@ -9,13 +9,13 @@ import com.pocketpets.app.domain.Species
 import com.pocketpets.app.domain.speech.CatSpeech
 import com.pocketpets.app.testing.FakeClock
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.test.TestScope
-import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
@@ -54,7 +54,7 @@ class PetViewModelTest {
         PetViewModel(repo, clock, zone, CatSpeech, rng = Random(seed), externalScope = scope)
 
     @Test fun `displayed mood reflects stats and time`() = runTest {
-        val testScope = TestScope(UnconfinedTestDispatcher())
+        val testScope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
         val repo = FakeRepo(samplePet(hunger = 20f))
         val vm = newVm(repo, testScope)
         try {
@@ -66,13 +66,13 @@ class PetViewModelTest {
     }
 
     @Test fun `feed delegates to repo`() = runTest {
-        val testScope = TestScope(UnconfinedTestDispatcher())
+        val testScope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
         val repo = FakeRepo(samplePet())
         val vm = newVm(repo, testScope)
         try {
             vm.state.first { it.pet != null }
             vm.feed()
-            testScope.testScheduler.advanceUntilIdle()
+            // Unconfined dispatcher: launched coroutines run inline, no scheduling needed.
             assertThat(repo.calls).contains("feed:1")
         } finally {
             testScope.cancel()
@@ -80,7 +80,7 @@ class PetViewModelTest {
     }
 
     @Test fun `talk emits a phrase from current mood category`() = runTest {
-        val testScope = TestScope(UnconfinedTestDispatcher())
+        val testScope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
         val repo = FakeRepo(samplePet(hunger = 20f))
         val vm = newVm(repo, testScope, seed = 7)
         try {
@@ -94,7 +94,7 @@ class PetViewModelTest {
     }
 
     @Test fun `dismissPhrase clears it`() = runTest {
-        val testScope = TestScope(UnconfinedTestDispatcher())
+        val testScope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
         val repo = FakeRepo(samplePet(hunger = 20f))
         val vm = newVm(repo, testScope, seed = 7)
         try {

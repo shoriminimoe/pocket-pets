@@ -52,6 +52,19 @@ class PetViewModel(
         PetUiState(ticked, mood, stage, phrase)
     }.stateIn(scope, SharingStarted.WhileSubscribed(5_000), PetUiState())
 
+    init {
+        // Idle chatter: while the screen is active, every 2 minutes, if no
+        // bubble is currently shown, surface a phrase from the current mood.
+        scope.launch {
+            ticker(120_000L).collect {
+                val st = state.value
+                if (st.pet != null && _phrase.value == null) {
+                    _phrase.value = speech.random(st.mood, rng)
+                }
+            }
+        }
+    }
+
     fun feed() = withActive { repo.feed(it) }
     fun clean() = withActive { repo.clean(it) }
     fun pet() = withActive { repo.pet(it) }
