@@ -6,6 +6,8 @@ import android.content.Intent
 
 class BootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
-        // Filled in once PetCareWorker exists.
+        if (intent.action == Intent.ACTION_BOOT_COMPLETED) {
+            WorkScheduler.schedule(context)
+        }
     }
 }
