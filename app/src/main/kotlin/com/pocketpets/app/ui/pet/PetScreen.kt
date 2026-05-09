@@ -1,5 +1,11 @@
 package com.pocketpets.app.ui.pet
 
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -27,15 +33,15 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import com.pocketpets.app.R
 import com.pocketpets.app.domain.GrowthStage
-import com.pocketpets.app.domain.Mood
 import com.pocketpets.app.domain.Pet
-import com.pocketpets.app.domain.Species
+import com.pocketpets.app.ui.sprite.AnimatedSprite
 import kotlin.random.Random
 
 @Composable
@@ -95,8 +101,9 @@ fun PetScreen(
 
         // Pet sprite (centered) + speech bubble above it
         if (pet != null) {
-            val spriteRes = spriteFor(pet.species, state.stage, state.mood)
-            val frames = frameCountFor(state.mood)
+            val animation = CatAnimations.forMood(state.stage, state.mood)
+            val spriteSize = stageSpriteSize(state.stage)
+            val breathingScale = rememberBreathingScale()
 
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -108,15 +115,23 @@ fun PetScreen(
                     Box(
                         modifier =
                             Modifier
-                                .size(256.dp)
+                                .size(spriteSize)
                                 .clickable {
                                     vm.talk()
                                     vm.pet()
                                 },
                     ) {
-                        SpriteView(
-                            spriteResId = spriteRes,
-                            frameCount = frames,
+                        AnimatedSprite(
+                            animation = animation,
+                            modifier =
+                                Modifier
+                                    .fillMaxSize()
+                                    // Vertical-only puff so the chest rises/falls
+                                    // instead of squashing horizontally.
+                                    .scale(scaleX = 1f, scaleY = breathingScale),
+                        )
+                        MoodOverlay(
+                            mood = state.mood,
                             modifier = Modifier.fillMaxSize(),
                         )
                     }
@@ -150,14 +165,7 @@ fun PetScreen(
                             .align(Alignment.BottomCenter)
                             .padding(
                                 bottom = (110 + i * 6).dp,
-                                start =
-                                    if (xOffset >
-                                        0
-                                    ) {
-                                        xOffset.dp
-                                    } else {
-                                        0.dp
-                                    },
+                                start = if (xOffset > 0) xOffset.dp else 0.dp,
                                 end = if (xOffset < 0) (-xOffset).dp else 0.dp,
                             ).size(48.dp),
                 )
@@ -188,46 +196,30 @@ private fun stageLabel(s: GrowthStage): String =
         GrowthStage.ADULT -> "Adult"
     }
 
-@Suppress("UNUSED_PARAMETER", "ktlint:standard:annotation")
-private fun spriteFor(
-    species: Species,
-    stage: GrowthStage,
-    mood: Mood,
-): Int =
+private fun stageSpriteSize(stage: GrowthStage) =
     when (stage) {
-        GrowthStage.BABY ->
-            when (mood) {
-                Mood.IDLE -> R.drawable.cat_baby_idle
-                Mood.HAPPY -> R.drawable.cat_baby_happy
-                Mood.HUNGRY -> R.drawable.cat_baby_hungry
-                Mood.GROSSED_OUT -> R.drawable.cat_baby_dirty
-                Mood.SAD -> R.drawable.cat_baby_sad
-                Mood.SLEEPY -> R.drawable.cat_baby_sleep
-            }
-        GrowthStage.JUVENILE ->
-            when (mood) {
-                Mood.IDLE -> R.drawable.cat_juvenile_idle
-                Mood.HAPPY -> R.drawable.cat_juvenile_happy
-                Mood.HUNGRY -> R.drawable.cat_juvenile_hungry
-                Mood.GROSSED_OUT -> R.drawable.cat_juvenile_dirty
-                Mood.SAD -> R.drawable.cat_juvenile_sad
-                Mood.SLEEPY -> R.drawable.cat_juvenile_sleep
-            }
-        GrowthStage.ADULT ->
-            when (mood) {
-                Mood.IDLE -> R.drawable.cat_adult_idle
-                Mood.HAPPY -> R.drawable.cat_adult_happy
-                Mood.HUNGRY -> R.drawable.cat_adult_hungry
-                Mood.GROSSED_OUT -> R.drawable.cat_adult_dirty
-                Mood.SAD -> R.drawable.cat_adult_sad
-                Mood.SLEEPY -> R.drawable.cat_adult_sleep
-            }
+        GrowthStage.BABY -> 192.dp
+        GrowthStage.JUVENILE -> 224.dp
+        GrowthStage.ADULT -> 256.dp
     }
 
-private fun frameCountFor(mood: Mood): Int =
-    when (mood) {
-        Mood.IDLE -> 4
-        Mood.HAPPY -> 3
-        Mood.SLEEPY -> 4
-        Mood.HUNGRY, Mood.GROSSED_OUT, Mood.SAD -> 1
-    }
+/**
+ * Subtle horizontal-pulse "breathing" applied to the sprite. Since the
+ * current cat asset is a single static frame, this Compose-layer micro-motion
+ * is what keeps the cat from looking frozen.
+ */
+@Composable
+private fun rememberBreathingScale(): Float {
+    val transition = rememberInfiniteTransition(label = "breathing")
+    val phase by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec =
+            infiniteRepeatable(
+                animation = tween(durationMillis = 2400, easing = LinearEasing),
+                repeatMode = RepeatMode.Reverse,
+            ),
+        label = "phase",
+    )
+    return 1f + 0.025f * phase
+}

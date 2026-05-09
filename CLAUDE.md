@@ -23,15 +23,17 @@ The unit-test suite uses Robolectric (`sdk=33` pinned via `app/src/test/resource
 
 ### Regenerating sprites
 
-`tools/generate_sprites.py` is a deterministic Pillow script that bakes the cat sprite sheets and decor PNGs into `app/src/main/res/drawable-nodpi/`. It needs Pillow in a venv (Pillow is not on system Python). Re-run it whenever sprite art needs to change:
+Two scripts produce art under `app/src/main/res/drawable-nodpi/`. Both are PEP-723 inline-deps Python scripts runnable directly via `uv` — no manual venv needed:
+
+- **`tools/fetch_cat_sprites.py`** — source-of-truth for `cat.png`. Fetches the upstream CC0 sprite from OpenGameArt, verifies the pinned SHA256, and **repacks** into a 64×128 sheet with sit (row 0) + lay (row 1) cells. Don't hand-edit `cat.png`; re-run this script.
+- **`tools/generate_sprites.py`** — deterministic Pillow procedural script for **decor only** (`poop.png`, `room_bg.png`, `bowl.png`). Cat code was removed when the real cat asset shipped.
 
 ```bash
-python3 -m venv ~/.local/spritegen-venv
-~/.local/spritegen-venv/bin/pip install Pillow
-~/.local/spritegen-venv/bin/python tools/generate_sprites.py
+uv run tools/fetch_cat_sprites.py    # cat.png
+uv run tools/generate_sprites.py     # decor PNGs
 ```
 
-The committed PNGs are the runtime source of truth; the script just regenerates them.
+The committed PNGs are the runtime source of truth; the scripts just regenerate them.
 
 ## Architecture
 
