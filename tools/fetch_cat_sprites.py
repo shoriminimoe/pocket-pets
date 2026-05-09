@@ -87,17 +87,19 @@ def repack_surt(raw: Image.Image) -> Image.Image:
     sit = sit.crop(sit.getbbox()) if sit.getbbox() else sit
     lay = lay.crop(lay.getbbox()) if lay.getbbox() else lay
 
-    # Compose into a 2-cell, 64x64-per-cell sheet, baselined to the bottom of each cell.
+    # Compose into a single-column, 2-row sheet so each pose lives on its own
+    # row. The renderer addresses cells as (col=frame, row=row), so different
+    # static poses must sit on different rows.
     cell = 64
-    out = Image.new("RGBA", (cell * 2, cell), (0, 0, 0, 0))
+    out = Image.new("RGBA", (cell, cell * 2), (0, 0, 0, 0))
 
-    def paste_centred(img: Image.Image, col: int) -> None:
-        ox = col * cell + (cell - img.size[0]) // 2
-        oy = cell - img.size[1] - 4  # bottom-aligned with a small margin
+    def paste_centred(img: Image.Image, row: int) -> None:
+        ox = (cell - img.size[0]) // 2
+        oy = row * cell + (cell - img.size[1]) - 4  # bottom-aligned with a small margin
         out.paste(img, (ox, oy), img)
 
-    paste_centred(sit, 0)
-    paste_centred(lay, 1)
+    paste_centred(sit, 0)  # row 0 — sit
+    paste_centred(lay, 1)  # row 1 — lay
     return out
 
 
