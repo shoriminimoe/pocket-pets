@@ -1,0 +1,73 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Build, test, run
+
+Single-module Android (Kotlin + Jetpack Compose), Gradle 8.10, JDK 17, AGP 8.7, compileSdk 35, minSdk 24.
+
+| Task | Command |
+|---|---|
+| Run all unit tests (debug + release variants) | `./gradlew test` |
+| Run a single test class | `./gradlew :app:testDebugUnitTest --tests "com.pocketpets.app.domain.StatDecayTest"` |
+| Run one test method | `./gradlew :app:testDebugUnitTest --tests "com.pocketpets.app.domain.StatDecayTest.poop spawns 30 minutes after feeding when none scheduled"` |
+| Build debug APK | `./gradlew :app:assembleDebug` |
+| Build release APK with explicit versionCode | `./gradlew :app:assembleDebug -PreleaseVersionCode=20300` |
+
+`JAVA_HOME` must point at a JDK 17 install and `ANDROID_HOME` (or `ANDROID_SDK_ROOT`) at an SDK with `platforms/android-35` + `build-tools/35.0.0`.
+
+The unit-test suite uses Robolectric (`sdk=33` pinned via `app/src/test/resources/robolectric.properties`) so all tests run on the JVM — there is no `androidTest/` source set.
+
+### Regenerating sprites
+
+`tools/generate_sprites.py` is a deterministic Pillow script that bakes the cat sprite sheets and decor PNGs into `app/src/main/res/drawable-nodpi/`. It needs Pillow in a venv (Pillow is not on system Python). Re-run it whenever sprite art needs to change:
+
+```bash
+python3 -m venv ~/.local/spritegen-venv
+~/.local/spritegen-venv/bin/pip install Pillow
+~/.local/spritegen-venv/bin/python tools/generate_sprites.py
+```
+
+The committed PNGs are the runtime source of truth; the script just regenerates them.
+
+## Architecture
+
+The app is a Tamagotchi-style pet simulator. Read `docs/superpowers/specs/2026-05-08-pocket-pets-design.md` for the product spec and `docs/superpowers/plans/2026-05-08-pocket-pets.md` for the original implementation plan and rationale on every numerical constant.
+
+### Layering
+- `domain/` — pure Kotlin, no Android deps. `StatDecay`, `Mood`, `GrowthStage`, `CatSpeech`, `Pet`, `PetStats`. Heavily unit-tested.
+- `data/` — Room (`db/`), repository (`repo/PetRepository`), DataStore prefs (`settings/`).
+- `ui/` — Compose screens (`pet/`, `adopt/`, `select/`, `settings/`) + `nav/AppNav` single-NavHost.
+- `work/` — `PetCareWorker` (periodic), `NotificationHelper`, `WorkScheduler`, `BootReceiver`.
+- `di/AppContainer` — manual DI, hung off `PocketPetsApp.container`. No Hilt.
+
+### The single load-bearing pattern: pure-function decay
+
+`StatDecay.tick(pet, now)` is the heart of the app. It's a pure function that takes a `Pet` and the current `Instant` and returns a fresh `Pet` with stats decayed for the elapsed time and at most one new poop spawned (poops fire 30 min after `lastFedAt`, then `lastFedAt` is consumed). It is called from **two** places, intentionally:
+
+1. `PetViewModel` calls it inside a `combine(repo.observeActive(), ticker(60s), _phrase)` flow so the UI shows always-current stats without writing to the DB on every UI tick (recompute-on-read).
+2. `PetCareWorker` calls it via `PetRepository.runDecayTick()` every 30 min so background notifications are based on current state.
+
+Care actions (`feed`, `clean`, `pet`, `talk`) all flow through `PetRepository.mutate()`, which runs `StatDecay.tick` first to bring the pet up-to-date, then applies the action, then writes once. Don't bypass this — it's the only path that keeps `lastTickAt` consistent.
+
+### Active-pet exclusivity
+
+Exactly one row in `pets` has `isActive=1`. `PetDao.setActiveExclusive(id)` is `@Transaction` — a SQL `UPDATE pets SET isActive = 0` followed by a targeted update. The UI uses `observeActive(): Flow<Pet?>` everywhere; switching pets goes through `PetRepository.setActive(id)`.
+
+### Notifications: hysteresis, not edge-triggered
+
+`NotificationHelper` reads/writes per-pet per-event flags in DataStore (`notif_flag_<petId>_<kind>`). It fires when a stat crosses `< 25`, sets the flag, and only re-fires after the stat recovers above `25 + 10` (hysteresis). Quiet hours window is checked first. `PocketPetsApp` implements `WorkManager.Configuration.Provider` so the worker initializes on-demand without a manifest provider — required for Robolectric tests too.
+
+## Testing gotchas
+
+- **`PetViewModelTest` does NOT use `TestScope`.** The ViewModel launches an infinite idle-chatter ticker on its scope; if the scope shares a `TestScheduler` with `runTest`, that ticker keeps `runTest` alive forever. Tests instead pass `externalScope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)` and cancel it in `finally`. The `externalScope` constructor parameter on `PetViewModel` exists *only* to support this — production code uses the default `viewModelScope`.
+- Room/DataStore/repository tests use `@RunWith(RobolectricTestRunner::class)` and `Room.inMemoryDatabaseBuilder`. `PetCareWorkerTest` uses `TestListenableWorkerBuilder` directly — do **not** call `WorkManagerTestInitHelper.initializeTestWorkManager`; it conflicts with the app's own `Configuration.Provider`.
+- Time is always injected via `kotlinx.datetime.Clock`. Production wires `Clock.System`; tests use `app/src/test/.../testing/FakeClock.kt`.
+
+## Versioning and CI/CD
+
+- Conventional commits drive everything. `feat:` → minor bump (within 0.x), `fix:` → patch, anything else (`build:`, `ci:`, `docs:`, `chore:`) → no release. The repo is in 0.x with `bump-minor-pre-major: true` so a `feat:` correctly bumps the minor.
+- `release-please` (config in `release-please-config.json`, manifest in `.release-please-manifest.json`) opens a release PR on every push to `main`. Merging it tags + creates the GitHub release. **All releases are marked pre-release** (`prerelease: true`) until explicitly turned off.
+- The `versionName` in `app/build.gradle.kts` is bumped automatically via the `// x-release-please-version` anchor — leave that comment in place.
+- `versionCode` is **not** committed-bumped; it's derived at release-build time as `major*10000 + minor*100 + patch` (floored at 100) and passed in as `-PreleaseVersionCode=N`. The committed default of `1` is a dev-build placeholder.
+- The release-build job lives **inline** in `.github/workflows/release-please.yml`, not in a separate workflow listening on `release: published`. That's because `GITHUB_TOKEN`-created releases don't trigger downstream workflows (GitHub anti-recursion guard) — keep it inline unless you switch to a PAT or GitHub App token.
