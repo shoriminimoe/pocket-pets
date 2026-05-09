@@ -9,6 +9,8 @@ captures/
 *.apk
 *.aab
 *.keystore
+# …except the stable debug keystore, which is intentionally committed.
+!app/debug.keystore
 .kotlin/
 
 .claude/worktrees/
