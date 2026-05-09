@@ -10,3 +10,6 @@ captures/
 *.aab
 *.keystore
 .kotlin/
+
+.claude/worktrees/
+.worktrees/
