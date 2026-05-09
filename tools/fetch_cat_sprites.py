@@ -30,25 +30,27 @@ from PIL import Image
 ROOT = Path(__file__).parent.parent
 OUT = ROOT / "app" / "src" / "main" / "res" / "drawable-nodpi" / "cat.png"
 
+PINNED_SHA = "6b046e3509234ecd502fd63d8f00cc8b48918803bca10aa8874e2709704f8624"
+
 CANDIDATES = [
     # (name, url, license_id, expected_sha256_or_None)
     (
         "Cat 32x32 by GrafxKid",
         "https://opengameart.org/sites/default/files/cat_1.png",
         "CC0",
-        None,
+        PINNED_SHA,
     ),
     (
         "Cat by Surt",
         "https://opengameart.org/sites/default/files/cats_0.png",
         "CC0",
-        None,
+        PINNED_SHA,
     ),
     (
         "LPC cat",
         "https://opengameart.org/sites/default/files/cat_4.png",
         "CC-BY-SA-3.0",
-        None,
+        PINNED_SHA,
     ),
 ]
 
