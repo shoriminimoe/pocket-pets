@@ -33,12 +33,20 @@ from PIL import Image
 ROOT = Path(__file__).parent.parent
 OUT = ROOT / "app" / "src" / "main" / "res" / "drawable-nodpi" / "cat.png"
 
-# SHA256 for the chosen asset (Cat by Surt). Pin per-candidate so each
-# entry's expected hash is independent.
+# SHA256 of each candidate's raw bytes. Pinned per-candidate so a wrong-hash
+# candidate hard-fails (see main()) and we never silently accept bytes from a
+# different upstream.
 PINNED_SHA_SURT = "1ec72bb74fd1d75b1f70042caef70cfc9c2325983c420f05a48c7cab7c18246d"
+PINNED_SHA_LPC: str | None = None  # set after the first run prints the digest
 
 CANDIDATES = [
     # (name, url, license_id, expected_sha256_or_None)
+    (
+        "LPC cat (universal-LPC-spritesheet)",
+        "https://opengameart.org/sites/default/files/cat_4.png",
+        "CC-BY-SA-3.0",
+        PINNED_SHA_LPC,
+    ),
     (
         "Cat by Surt",
         "https://opengameart.org/sites/default/files/cats_0.png",
@@ -49,12 +57,6 @@ CANDIDATES = [
         "Cat 32x32 by GrafxKid",
         "https://opengameart.org/sites/default/files/cat_1.png",
         "CC0",
-        None,
-    ),
-    (
-        "LPC cat",
-        "https://opengameart.org/sites/default/files/cat_4.png",
-        "CC-BY-SA-3.0",
         None,
     ),
 ]
@@ -68,6 +70,47 @@ def fetch(url: str) -> bytes:
 
 def sha256(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
+
+
+def repack_lpc(raw: Image.Image) -> Image.Image:
+    """Repack an LPC-style cat sheet into the canonical 4-cols x 6-rows grid:
+        row 0..3: walk S/N/W/E (4 frames each, 64x64)
+        row 4:    sit (col 0)
+        row 5:    lay (col 0)
+
+    LPC sheets typically lay out a character as 13 rows x N cols at 64x64
+    (cast/thrust/walk/shoot/hurt etc.) — the cat sheet is a stripped subset.
+    The SOURCE_REGIONS below are PLACEHOLDERS; Task 2 of the implementation
+    plan inspects the real sheet and replaces them with the right boxes.
+    """
+    frame_w, frame_h = 64, 64
+    cell = frame_w
+    cols = 4
+    rows = 6
+
+    # PLACEHOLDER coordinates — Task 2 inspects the real sheet and updates these.
+    # Form: (x0, y0, x1, y1) in the raw sheet; each "strip" must be exactly
+    # 4*frame_w wide and 1*frame_h tall.
+    walk_s = (0, 0,             frame_w * cols, frame_h)
+    walk_n = (0, frame_h * 1,   frame_w * cols, frame_h * 2)
+    walk_w = (0, frame_h * 2,   frame_w * cols, frame_h * 3)
+    walk_e = (0, frame_h * 3,   frame_w * cols, frame_h * 4)
+    sit = (0, frame_h * 4,      frame_w,        frame_h * 5)
+    lay = (0, frame_h * 5,      frame_w,        frame_h * 6)
+
+    out = Image.new("RGBA", (cols * cell, rows * cell), (0, 0, 0, 0))
+
+    def paste_strip(box: tuple[int, int, int, int], dest_row: int) -> None:
+        strip = raw.crop(box)
+        out.paste(strip, (0, dest_row * cell), strip)
+
+    paste_strip(walk_s, 0)
+    paste_strip(walk_n, 1)
+    paste_strip(walk_w, 2)
+    paste_strip(walk_e, 3)
+    paste_strip(sit, 4)
+    paste_strip(lay, 5)
+    return out
 
 
 def repack_surt(raw: Image.Image) -> Image.Image:
@@ -106,6 +149,8 @@ def repack_surt(raw: Image.Image) -> Image.Image:
 def process_chosen(name: str, raw_bytes: bytes) -> Image.Image:
     """Apply the per-asset repack. Add new branches as candidates are added."""
     raw = Image.open(io.BytesIO(raw_bytes)).convert("RGBA")
+    if name.startswith("LPC cat"):
+        return repack_lpc(raw)
     if name == "Cat by Surt":
         return repack_surt(raw)
     # Default: pass through unchanged.
