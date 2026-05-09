@@ -16,6 +16,5 @@ data class HabitatBounds(
         require(minY < maxY) { "empty bounds: minY=$minY must be < maxY=$maxY" }
     }
 
-    fun clamp(p: Position): Position =
-        Position(p.x.coerceIn(minX, maxX), p.y.coerceIn(minY, maxY))
+    fun clamp(p: Position): Position = Position(p.x.coerceIn(minX, maxX), p.y.coerceIn(minY, maxY))
 }

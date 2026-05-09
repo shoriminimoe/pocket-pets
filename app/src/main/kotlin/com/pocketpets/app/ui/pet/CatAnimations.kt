@@ -1,29 +1,21 @@
 package com.pocketpets.app.ui.pet
 
 import com.pocketpets.app.R
-import com.pocketpets.app.domain.GrowthStage
-import com.pocketpets.app.domain.Mood
+import com.pocketpets.app.domain.behavior.CatState
 import com.pocketpets.app.ui.sprite.SpriteAnimation
 import com.pocketpets.app.ui.sprite.SpriteSheet
 
 /**
- * Maps each [Mood] to a [SpriteAnimation] on the bundled cat sprite sheet.
+ * Maps each [CatState] to a [SpriteAnimation] on the bundled cat sprite sheet.
  *
- * The current asset (Surt's cat, repacked by tools/fetch_cat_sprites.py) is
- * a 64x128 sheet with two 64x64 cells stacked vertically:
+ * Sheet layout (after the Phase 2 LPC swap, repacked by tools/fetch_cat_sprites.py):
+ *  - row 0..3: walk S/N/W/E (4 frames each, 64x64 cells)
+ *  - row 4:    sit (col 0)
+ *  - row 5:    lay (col 0)
  *
- *  - row 0: cat in a sitting pose
- *  - row 1: cat in a lying pose
- *
- * Each "animation" is a single static frame. Distinguishing the sit-based
- * moods from each other is delegated to [MoodOverlay], which draws particles
- * (heart / tear / squiggle / Z) on top of the sprite. The sense of life
- * comes from [PetScreen]'s Compose-layer breathing transform, not from
- * frame-by-frame animation.
- *
- * [GrowthStage] is accepted for future per-stage variation but currently
- * returns the same animation regardless of stage; visual sizing differs via
- * [PetScreen]'s sprite-Box dp size.
+ * The renderer's `facing` parameter adds row offsets 0/1/2/3 for SOUTH/NORTH/
+ * WEST/EAST, so a single `walk` SpriteAnimation on row 0 becomes the
+ * directional walk for free when AnimatedSprite is called with the right facing.
  */
 object CatAnimations {
     private val sheet =
@@ -31,41 +23,19 @@ object CatAnimations {
             resId = R.drawable.cat,
             frameWidth = 64,
             frameHeight = 64,
-            rows = 2,
-            cols = 1,
+            rows = 6,
+            cols = 4,
         )
 
-    /** Static sit pose, sheet row 0. */
-    val sit: SpriteAnimation =
-        SpriteAnimation(
-            sheet = sheet,
-            row = 0,
-            frameCount = 1,
-        )
+    val walk: SpriteAnimation =
+        SpriteAnimation(sheet, row = 0, frameCount = 4, frameMs = 120, loop = true)
+    val sit: SpriteAnimation = SpriteAnimation(sheet, row = 4, frameCount = 1)
+    val lay: SpriteAnimation = SpriteAnimation(sheet, row = 5, frameCount = 1)
 
-    /** Static lying-down pose, sheet row 1. */
-    val lay: SpriteAnimation =
-        SpriteAnimation(
-            sheet = sheet,
-            row = 1,
-            frameCount = 1,
-        )
-
-    /**
-     * Map [Mood] to the appropriate base animation. Sleeping cats lie down;
-     * everyone else sits. Particle disambiguation lives in MoodOverlay.
-     */
-    fun forMood(
-        stage: GrowthStage,
-        mood: Mood,
-    ): SpriteAnimation =
-        when (mood) {
-            Mood.SLEEPY -> lay
-            Mood.IDLE,
-            Mood.HAPPY,
-            Mood.HUNGRY,
-            Mood.GROSSED_OUT,
-            Mood.SAD,
-            -> sit
+    fun forState(state: CatState): SpriteAnimation =
+        when (state) {
+            CatState.Walking -> walk
+            CatState.Idle -> sit
+            CatState.Lying -> lay
         }
 }

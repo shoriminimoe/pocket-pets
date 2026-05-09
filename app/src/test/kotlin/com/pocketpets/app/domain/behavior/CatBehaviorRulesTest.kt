@@ -5,8 +5,8 @@ import com.google.common.truth.Truth.assertThat
 import com.pocketpets.app.domain.Mood
 import com.pocketpets.app.ui.sprite.Direction
 import kotlinx.datetime.Instant
-import kotlin.random.Random
 import org.junit.Test
+import kotlin.random.Random
 
 class CatBehaviorRulesTest {
     private val bounds = HabitatBounds(0f, 0f, 200f, 100f)
@@ -29,8 +29,7 @@ class CatBehaviorRulesTest {
         nextWanderAt = nextWanderAt,
     )
 
-    private fun Instant.plusSeconds(s: Long): Instant =
-        Instant.fromEpochMilliseconds(toEpochMilliseconds() + s * 1000)
+    private fun Instant.plusSeconds(s: Long): Instant = Instant.fromEpochMilliseconds(toEpochMilliseconds() + s * 1000)
 
     // ----- directionOf ------------------------------------------------------
 
@@ -152,13 +151,14 @@ class CatBehaviorRulesTest {
     @Test
     fun `walking cat that arrives at non-bed target becomes Idle and reschedules wander`() {
         val arrivedAt = Position(40f, 40f)
-        val b = behavior(
-            state = CatState.Walking,
-            x = arrivedAt.x,
-            y = arrivedAt.y,
-            targetX = arrivedAt.x,
-            targetY = arrivedAt.y,
-        )
+        val b =
+            behavior(
+                state = CatState.Walking,
+                x = arrivedAt.x,
+                y = arrivedAt.y,
+                targetX = arrivedAt.x,
+                targetY = arrivedAt.y,
+            )
         val out = CatBehaviorRules.tick(b, t0, 0.1f, Mood.IDLE, bounds, anchors, Random(0))
         assertThat(out.state).isEqualTo(CatState.Idle)
         val deltaSec = (out.nextWanderAt.toEpochMilliseconds() - t0.toEpochMilliseconds()) / 1000L
@@ -168,13 +168,14 @@ class CatBehaviorRulesTest {
 
     @Test
     fun `walking cat that arrives at bed becomes Lying`() {
-        val b = behavior(
-            state = CatState.Walking,
-            x = anchors.bed.x,
-            y = anchors.bed.y,
-            targetX = anchors.bed.x,
-            targetY = anchors.bed.y,
-        )
+        val b =
+            behavior(
+                state = CatState.Walking,
+                x = anchors.bed.x,
+                y = anchors.bed.y,
+                targetX = anchors.bed.x,
+                targetY = anchors.bed.y,
+            )
         val out = CatBehaviorRules.tick(b, t0, 0.1f, Mood.SLEEPY, bounds, anchors, Random(0))
         assertThat(out.state).isEqualTo(CatState.Lying)
     }
@@ -207,13 +208,14 @@ class CatBehaviorRulesTest {
 
     @Test
     fun `lying cat wakes up and walks when no longer sleepy`() {
-        val b = behavior(
-            state = CatState.Lying,
-            x = anchors.bed.x,
-            y = anchors.bed.y,
-            targetX = anchors.bed.x,
-            targetY = anchors.bed.y,
-        )
+        val b =
+            behavior(
+                state = CatState.Lying,
+                x = anchors.bed.x,
+                y = anchors.bed.y,
+                targetX = anchors.bed.x,
+                targetY = anchors.bed.y,
+            )
         val out = CatBehaviorRules.tick(b, t0, 0.016f, Mood.IDLE, bounds, anchors, Random(0))
         assertThat(out.state).isEqualTo(CatState.Walking)
     }
