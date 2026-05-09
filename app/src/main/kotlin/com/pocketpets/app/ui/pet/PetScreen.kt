@@ -126,7 +126,9 @@ fun PetScreen(
                             modifier =
                                 Modifier
                                     .fillMaxSize()
-                                    .scale(scaleX = breathingScale, scaleY = 1f / breathingScale),
+                                    // Vertical-only puff so the chest rises/falls
+                                    // instead of squashing horizontally.
+                                    .scale(scaleX = 1f, scaleY = breathingScale),
                         )
                         MoodOverlay(
                             mood = state.mood,

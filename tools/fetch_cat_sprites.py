@@ -123,8 +123,15 @@ def main() -> int:
             continue
         digest = sha256(data)
         if expected is not None and digest != expected:
-            print(f"  SHA256 mismatch: got {digest}, expected {expected}")
-            continue
+            # Hard-fail: a pinned candidate that returns different bytes is a
+            # supply-chain signal, not an excuse to silently try the next
+            # (possibly unverified) candidate. Re-pin the SHA only after a
+            # human eyeballs the new bytes.
+            print(
+                f"  SHA256 mismatch on pinned candidate: got {digest}, expected {expected}",
+                file=sys.stderr,
+            )
+            return 2
         try:
             processed = process_chosen(name, data)
         except Exception as e:

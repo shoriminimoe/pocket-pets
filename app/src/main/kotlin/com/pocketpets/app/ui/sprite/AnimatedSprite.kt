@@ -11,7 +11,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.unit.IntOffset
@@ -23,7 +22,10 @@ import kotlinx.coroutines.delay
  * on a `LaunchedEffect`. The bitmap is decoded once per `animation.sheet.resId` and
  * cached via `remember` so swapping animations on the same sheet is free.
  *
- * [facing] adds a row offset for sheets that pack multiple directions per state.
+ * [facing] picks a row offset for sheets that pack 4-direction animations into 4
+ * consecutive rows. Out-of-bounds combinations of `animation.row + facing offset`
+ * are caught by [requireFacingFits], which fails fast rather than reading garbage.
+ *
  * [flipHorizontal] mirrors the rendered frame around its vertical axis.
  *
  * For single-frame animations (`frameCount == 1`) the ticker is skipped entirely.
@@ -35,6 +37,7 @@ fun AnimatedSprite(
     facing: Direction = Direction.SOUTH,
     flipHorizontal: Boolean = false,
 ) {
+    requireFacingFits(animation, facing)
     val resources = LocalResources.current
     val bitmap =
         remember(animation.sheet.resId, resources) {
@@ -49,53 +52,74 @@ fun AnimatedSprite(
     var frame by remember(animation) { mutableIntStateOf(0) }
     LaunchedEffect(animation) {
         if (animation.frameCount <= 1) return@LaunchedEffect
-        while (true) {
-            delay(animation.frameMs)
-            frame =
-                if (animation.loop) {
-                    (frame + 1) % animation.frameCount
-                } else {
-                    (frame + 1).coerceAtMost(animation.frameCount - 1)
-                }
-            if (!animation.loop && frame == animation.frameCount - 1) break
+        if (animation.loop) {
+            while (true) {
+                delay(animation.frameMs)
+                frame = (frame + 1) % animation.frameCount
+            }
+        } else {
+            // Advance through the remaining frames once and stop on the last.
+            while (frame < animation.frameCount - 1) {
+                delay(animation.frameMs)
+                frame++
+            }
         }
     }
-
-    val rowOffset =
-        when (facing) {
-            Direction.SOUTH -> 0
-            Direction.NORTH -> 1
-            Direction.WEST -> 2
-            Direction.EAST -> 3
-        }
 
     Canvas(modifier = modifier) {
         val scaleX = if (flipHorizontal) -1f else 1f
         scale(scaleX = scaleX, scaleY = 1f) {
-            drawFrame(
+            val srcOffset = srcOffsetFor(frame, animation, facing)
+            drawImage(
                 image = image,
-                col = frame,
-                row = animation.row + rowOffset,
-                frameW = animation.sheet.frameWidth,
-                frameH = animation.sheet.frameHeight,
+                srcOffset = srcOffset,
+                srcSize = IntSize(animation.sheet.frameWidth, animation.sheet.frameHeight),
+                dstOffset = IntOffset(0, 0),
+                dstSize = IntSize(size.width.toInt(), size.height.toInt()),
+                filterQuality = FilterQuality.None,
             )
         }
     }
 }
 
-private fun DrawScope.drawFrame(
-    image: androidx.compose.ui.graphics.ImageBitmap,
-    col: Int,
-    row: Int,
-    frameW: Int,
-    frameH: Int,
-) {
-    drawImage(
-        image = image,
-        srcOffset = IntOffset(col * frameW, row * frameH),
-        srcSize = IntSize(frameW, frameH),
-        dstOffset = IntOffset(0, 0),
-        dstSize = IntSize(size.width.toInt(), size.height.toInt()),
-        filterQuality = FilterQuality.None,
+/**
+ * Pure mapping of (frame index, animation, facing) to the top-left source pixel
+ * for that frame on the sprite sheet. Extracted so the math can be unit-tested
+ * without touching the Compose renderer.
+ */
+internal fun srcOffsetFor(
+    frame: Int,
+    animation: SpriteAnimation,
+    facing: Direction,
+): IntOffset {
+    val row = animation.row + facingRowOffset(facing)
+    return IntOffset(
+        x = frame * animation.sheet.frameWidth,
+        y = row * animation.sheet.frameHeight,
     )
+}
+
+/** Row offset added on top of [SpriteAnimation.row] when rendering [facing]. */
+internal fun facingRowOffset(facing: Direction): Int =
+    when (facing) {
+        Direction.SOUTH -> 0
+        Direction.NORTH -> 1
+        Direction.WEST -> 2
+        Direction.EAST -> 3
+    }
+
+/**
+ * Fail-fast bounds check before drawing. Lets a Phase 3 caller pass
+ * Direction.NORTH against a sheet that lacks the required rows and get a clear
+ * error instead of a garbage frame.
+ */
+internal fun requireFacingFits(
+    animation: SpriteAnimation,
+    facing: Direction,
+) {
+    val totalRow = animation.row + facingRowOffset(facing)
+    require(totalRow < animation.sheet.rows) {
+        "facing=$facing on animation.row=${animation.row} reads row=$totalRow which is " +
+            "out of bounds for sheet with ${animation.sheet.rows} rows"
+    }
 }

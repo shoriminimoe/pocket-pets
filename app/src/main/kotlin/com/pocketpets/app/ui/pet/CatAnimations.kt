@@ -31,6 +31,8 @@ object CatAnimations {
             resId = R.drawable.cat,
             frameWidth = 64,
             frameHeight = 64,
+            rows = 2,
+            cols = 1,
         )
 
     /** Static sit pose, sheet row 0. */

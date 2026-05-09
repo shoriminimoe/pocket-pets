@@ -29,6 +29,10 @@ fun MoodOverlay(
     mood: Mood,
     modifier: Modifier = Modifier,
 ) {
+    // Moods that draw nothing don't need an animation ticker. Bail before
+    // rememberInfiniteTransition so we're not recomposing a no-op canvas.
+    if (mood == Mood.IDLE || mood == Mood.HUNGRY) return
+
     val transition = rememberInfiniteTransition(label = "mood-overlay")
     val phase by transition.animateFloat(
         initialValue = 0f,
@@ -46,7 +50,7 @@ fun MoodOverlay(
             Mood.SAD -> drawTear(phase)
             Mood.GROSSED_OUT -> drawSquiggle(phase)
             Mood.SLEEPY -> drawZs(phase)
-            Mood.IDLE, Mood.HUNGRY -> Unit
+            Mood.IDLE, Mood.HUNGRY -> Unit // unreachable, handled above
         }
     }
 }
