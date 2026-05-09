@@ -13,8 +13,8 @@ android {
         applicationId = "com.pocketpets.app"
         minSdk = 24
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = (project.findProperty("releaseVersionCode") as String?)?.toInt() ?: 1
+        versionName = "0.1.0" // x-release-please-version
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
