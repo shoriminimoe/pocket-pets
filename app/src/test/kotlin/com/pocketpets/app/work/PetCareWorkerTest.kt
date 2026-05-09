@@ -32,6 +32,7 @@ class PetCareWorkerTest {
             .allowMainThreadQueries().build()
         repo = PetRepository(db.petDao(), db.careEventDao(), clock)
     }
+
     @After fun teardown() { db.close() }
 
     @Test fun `worker decays all pets`() = runTest {

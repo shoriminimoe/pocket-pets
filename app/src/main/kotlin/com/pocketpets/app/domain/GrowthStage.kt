@@ -3,7 +3,9 @@ package com.pocketpets.app.domain
 import kotlinx.datetime.Instant
 
 enum class GrowthStage {
-    BABY, JUVENILE, ADULT;
+    BABY,
+    JUVENILE,
+    ADULT;
 
     companion object {
         private const val MS_PER_DAY = 24L * 60 * 60 * 1000

@@ -8,6 +8,7 @@ import com.pocketpets.app.domain.PetStats
 import com.pocketpets.app.domain.Species
 import com.pocketpets.app.domain.speech.CatSpeech
 import com.pocketpets.app.testing.FakeClock
+import kotlin.random.Random
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -20,7 +21,6 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import org.junit.Test
-import kotlin.random.Random
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class PetViewModelTest {

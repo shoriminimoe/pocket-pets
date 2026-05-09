@@ -1,11 +1,11 @@
 package com.pocketpets.app.domain
 
 import com.google.common.truth.Truth.assertThat
-import kotlinx.datetime.Instant
-import org.junit.Test
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.hours
+import kotlinx.datetime.Instant
+import org.junit.Test
 
 class GrowthStageTest {
     private val born = Instant.parse("2026-01-01T00:00:00Z")

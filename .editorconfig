@@ -1,0 +1,39 @@
+root = true
+
+[*]
+indent_style = space
+end_of_line = lf
+charset = utf-8
+trim_trailing_whitespace = true
+insert_final_newline = true
+
+[*.{kt,kts}]
+indent_size = 4
+ij_kotlin_imports_layout = *
+ktlint_code_style = intellij_idea
+max_line_length = 140
+ktlint_standard_max-line-length = disabled
+# Ktlint's "official" style aggressively rewrites well-formatted Compose code.
+# We keep the high-signal rules (imports, naming for non-Composables, no-wildcard-imports,
+# no-unused-imports) but disable the ones that produce churn without catching real bugs.
+ktlint_standard_multiline-expression-wrapping = disabled
+ktlint_standard_function-signature = disabled
+ktlint_standard_function-expression-body = disabled
+ktlint_standard_blank-line-before-declaration = disabled
+ktlint_standard_discouraged-comment-location = disabled
+ktlint_standard_trailing-comma-on-call-site = disabled
+ktlint_standard_trailing-comma-on-declaration-site = disabled
+ktlint_standard_property-naming = disabled
+# Composable functions intentionally use PascalCase.
+ktlint_standard_function-naming = disabled
+# Indent disagreements between ktlint and our Compose layouts cost more to enforce
+# than they buy in readability.
+ktlint_standard_indent = disabled
+ktlint_standard_argument-list-wrapping = disabled
+ktlint_standard_parameter-list-wrapping = disabled
+ktlint_standard_chain-wrapping = disabled
+# Single-line `@Test fun foo() = ...` and `@After fun teardown() { db.close() }` are clearer than wrapped.
+ktlint_standard_statement-wrapping = disabled
+
+[*.{xml,yml,yaml,json,toml,md}]
+indent_size = 2

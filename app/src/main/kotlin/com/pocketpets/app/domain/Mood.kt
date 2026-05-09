@@ -5,7 +5,12 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 
 enum class Mood {
-    IDLE, HAPPY, HUNGRY, GROSSED_OUT, SAD, SLEEPY;
+    IDLE,
+    HAPPY,
+    HUNGRY,
+    GROSSED_OUT,
+    SAD,
+    SLEEPY;
 
     companion object {
         // Sleep window is [22:00, 07:00) device-local

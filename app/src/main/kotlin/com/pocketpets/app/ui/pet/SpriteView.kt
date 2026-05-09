@@ -21,14 +21,17 @@ import kotlinx.coroutines.delay
 fun SpriteView(
     spriteResId: Int,
     frameCount: Int,
-    frameMs: Long = 180,
     modifier: Modifier = Modifier,
+    frameMs: Long = 180,
 ) {
     val context = LocalContext.current
     val sheet = remember(spriteResId) {
-        BitmapFactory.decodeResource(context.resources, spriteResId, BitmapFactory.Options().apply {
+        BitmapFactory.decodeResource(
+            context.resources, spriteResId,
+            BitmapFactory.Options().apply {
             inScaled = false
-        })
+        }
+        )
     }
     var frame by remember(spriteResId) { mutableIntStateOf(0) }
     LaunchedEffect(spriteResId, frameCount) {

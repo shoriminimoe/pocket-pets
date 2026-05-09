@@ -13,6 +13,10 @@ Single-module Android (Kotlin + Jetpack Compose), Gradle 8.10, JDK 17, AGP 8.7, 
 | Run one test method | `./gradlew :app:testDebugUnitTest --tests "com.pocketpets.app.domain.StatDecayTest.poop spawns 30 minutes after feeding when none scheduled"` |
 | Build debug APK | `./gradlew :app:assembleDebug` |
 | Build release APK with explicit versionCode | `./gradlew :app:assembleDebug -PreleaseVersionCode=20300` |
+| Lint (Kotlin style) | `./gradlew ktlintCheck` |
+| Auto-fix Kotlin style | `./gradlew ktlintFormat` |
+| Android Lint | `./gradlew :app:lintDebug` |
+| Regenerate Android Lint baseline | `rm app/lint-baseline.xml && ./gradlew :app:lintDebug` |
 
 `JAVA_HOME` must point at a JDK 17 install and `ANDROID_HOME` (or `ANDROID_SDK_ROOT`) at an SDK with `platforms/android-35` + `build-tools/35.0.0`.
 
@@ -57,6 +61,12 @@ Exactly one row in `pets` has `isActive=1`. `PetDao.setActiveExclusive(id)` is `
 ### Notifications: hysteresis, not edge-triggered
 
 `NotificationHelper` reads/writes per-pet per-event flags in DataStore (`notif_flag_<petId>_<kind>`). It fires when a stat crosses `< 25`, sets the flag, and only re-fires after the stat recovers above `25 + 10` (hysteresis). Quiet hours window is checked first. `PocketPetsApp` implements `WorkManager.Configuration.Provider` so the worker initializes on-demand without a manifest provider — required for Robolectric tests too.
+
+## Linting
+
+- **ktlint** runs via the JLLeitschuh Gradle plugin. Rules are pinned in `.editorconfig` (NOT in any Gradle DSL), and we deliberately disable several `standard:` rules that would force cosmetic rewrites of correctly-readable Compose code (multiline-expression-wrapping, function-signature, indent, function-naming, statement-wrapping, etc.). Real bugs (unused imports, naming for non-Composables) still fire.
+- **Android Lint** runs against `:app:lintDebug` with `abortOnError = true` and a baseline at `app/lint-baseline.xml`. The baseline silences pre-existing noise (unused sprite resources looked up via reflection, dependency-update suggestions, etc.) — only **new** issues fail the build. To accept a new issue intentionally, regenerate the baseline (`rm app/lint-baseline.xml && ./gradlew :app:lintDebug` produces a fresh one).
+- WorkManager's `androidx.startup` content provider is explicitly removed from the manifest (see the `tools:node="remove"` block) because we self-initialise via `Configuration.Provider`; don't put it back.
 
 ## Testing gotchas
 

@@ -27,6 +27,7 @@ class PetRepositoryTest {
             .allowMainThreadQueries().build()
         repo = PetRepository(db.petDao(), db.careEventDao(), clock)
     }
+
     @After fun teardown() { db.close() }
 
     @Test fun `adopt creates a full-stat active pet`() = runTest {
