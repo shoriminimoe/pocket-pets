@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0](https://github.com/shoriminimoe/pocket-pets/compare/v0.2.0...v0.3.0) (2026-05-09)
+
+
+### Features
+
+* add cat-sprite fetch script with CC0-first candidate list ([5a7ef88](https://github.com/shoriminimoe/pocket-pets/commit/5a7ef8856ec2f1dd5087f00b682e4d3fe5baa7e9))
+
 ## [0.2.0](https://github.com/shoriminimoe/pocket-pets/compare/v0.1.0...v0.2.0) (2026-05-09)
 
 
