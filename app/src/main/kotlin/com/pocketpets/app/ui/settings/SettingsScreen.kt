@@ -20,11 +20,14 @@ import androidx.compose.ui.unit.dp
 import com.pocketpets.app.BuildConfig
 
 @Composable
-fun SettingsScreen(vm: SettingsViewModel) {
+fun SettingsScreen(
+    vm: SettingsViewModel,
+    modifier: Modifier = Modifier,
+) {
     val s by vm.settings.collectAsState()
     val accel by vm.timeAccel.collectAsState()
     val current = s ?: return
-    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+    Column(modifier = modifier.fillMaxSize().padding(16.dp)) {
         Text("Notifications", style = MaterialTheme.typography.titleLarge)
         Spacer(Modifier.height(8.dp))
         ToggleRow("All notifications", current.masterOn) { vm.update(current.copy(masterOn = it)) }
@@ -42,7 +45,11 @@ fun SettingsScreen(vm: SettingsViewModel) {
 }
 
 @Composable
-private fun ToggleRow(label: String, value: Boolean, onChange: (Boolean) -> Unit) {
+private fun ToggleRow(
+    label: String,
+    value: Boolean,
+    onChange: (Boolean) -> Unit,
+) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,

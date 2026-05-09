@@ -18,10 +18,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
 @Composable
-fun AdoptPetScreen(vm: AdoptViewModel, onAdopted: (Long) -> Unit) {
+fun AdoptPetScreen(
+    vm: AdoptViewModel,
+    onAdopt: (Long) -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val s by vm.state.collectAsState()
     Column(
-        modifier = Modifier.fillMaxSize().padding(24.dp),
+        modifier = modifier.fillMaxSize().padding(24.dp),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
@@ -36,7 +40,7 @@ fun AdoptPetScreen(vm: AdoptViewModel, onAdopted: (Long) -> Unit) {
             singleLine = true,
         )
         Spacer(Modifier.height(24.dp))
-        Button(onClick = { vm.adopt(onAdopted) }, enabled = s.canSubmit) {
+        Button(onClick = { vm.adopt(onAdopt) }, enabled = s.canSubmit) {
             Text("Adopt")
         }
     }

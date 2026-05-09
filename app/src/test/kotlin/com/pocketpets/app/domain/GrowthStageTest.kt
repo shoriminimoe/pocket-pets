@@ -39,5 +39,4 @@ class GrowthStageTest {
     }
 }
 
-private fun Instant.plusDur(d: Duration): Instant =
-    Instant.fromEpochMilliseconds(this.toEpochMilliseconds() + d.inWholeMilliseconds)
+private fun Instant.plusDur(d: Duration): Instant = Instant.fromEpochMilliseconds(this.toEpochMilliseconds() + d.inWholeMilliseconds)

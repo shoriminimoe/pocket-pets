@@ -36,21 +36,21 @@ class PetViewModel(
     private val rng: Random = Random.Default,
     externalScope: CoroutineScope? = null,
 ) : ViewModel() {
-
     private val scope: CoroutineScope = externalScope ?: viewModelScope
 
-    private val _phrase = MutableStateFlow<Phrase?>(null)
-    val state: StateFlow<PetUiState> = combine(
-        repo.observeActive(),
-        ticker(60_000L),
-        _phrase,
-    ) { rawPet, _, phrase ->
-        val now = clock.now()
-        val ticked = rawPet?.let { StatDecay.tick(it, now) }
-        val mood = ticked?.let { Mood.from(it, now, zone) } ?: Mood.IDLE
-        val stage = ticked?.let { GrowthStage.fromAge(it.bornAt, now) } ?: GrowthStage.BABY
-        PetUiState(ticked, mood, stage, phrase)
-    }.stateIn(scope, SharingStarted.WhileSubscribed(5_000), PetUiState())
+    private val currentPhrase = MutableStateFlow<Phrase?>(null)
+    val state: StateFlow<PetUiState> =
+        combine(
+            repo.observeActive(),
+            ticker(60_000L),
+            currentPhrase,
+        ) { rawPet, _, phrase ->
+            val now = clock.now()
+            val ticked = rawPet?.let { StatDecay.tick(it, now) }
+            val mood = ticked?.let { Mood.from(it, now, zone) } ?: Mood.IDLE
+            val stage = ticked?.let { GrowthStage.fromAge(it.bornAt, now) } ?: GrowthStage.BABY
+            PetUiState(ticked, mood, stage, phrase)
+        }.stateIn(scope, SharingStarted.WhileSubscribed(5_000), PetUiState())
 
     init {
         // Idle chatter: while the screen is active, every 2 minutes, if no
@@ -58,23 +58,30 @@ class PetViewModel(
         scope.launch {
             ticker(120_000L).collect {
                 val st = state.value
-                if (st.pet != null && _phrase.value == null) {
-                    _phrase.value = speech.random(st.mood, rng)
+                if (st.pet != null && currentPhrase.value == null) {
+                    currentPhrase.value = speech.random(st.mood, rng)
                 }
             }
         }
     }
 
     fun feed() = withActive { repo.feed(it) }
+
     fun clean() = withActive { repo.clean(it) }
+
     fun pet() = withActive { repo.pet(it) }
-    fun talk() = withActive { id ->
-        val mood = state.value.mood
-        val phrase = speech.random(mood, rng)
-        _phrase.value = phrase
-        repo.talk(id)
+
+    fun talk() =
+        withActive { id ->
+            val mood = state.value.mood
+            val phrase = speech.random(mood, rng)
+            currentPhrase.value = phrase
+            repo.talk(id)
+        }
+
+    fun dismissPhrase() {
+        currentPhrase.value = null
     }
-    fun dismissPhrase() { _phrase.value = null }
 
     private fun withActive(block: suspend (Long) -> Unit) {
         val id = state.value.pet?.id ?: return

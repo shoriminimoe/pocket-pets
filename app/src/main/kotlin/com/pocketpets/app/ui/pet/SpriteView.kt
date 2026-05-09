@@ -12,7 +12,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.DrawScope
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import kotlinx.coroutines.delay
@@ -21,15 +21,20 @@ import kotlinx.coroutines.delay
 fun SpriteView(
     spriteResId: Int,
     frameCount: Int,
-    frameMs: Long = 180,
     modifier: Modifier = Modifier,
+    frameMs: Long = 180,
 ) {
-    val context = LocalContext.current
-    val sheet = remember(spriteResId) {
-        BitmapFactory.decodeResource(context.resources, spriteResId, BitmapFactory.Options().apply {
-            inScaled = false
-        })
-    }
+    val resources = LocalResources.current
+    val sheet =
+        remember(spriteResId, resources) {
+            BitmapFactory.decodeResource(
+                resources,
+                spriteResId,
+                BitmapFactory.Options().apply {
+                    inScaled = false
+                },
+            )
+        }
     var frame by remember(spriteResId) { mutableIntStateOf(0) }
     LaunchedEffect(spriteResId, frameCount) {
         if (frameCount <= 1) return@LaunchedEffect

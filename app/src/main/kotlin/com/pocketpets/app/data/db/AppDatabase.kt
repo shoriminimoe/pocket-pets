@@ -12,5 +12,6 @@ import androidx.room.TypeConverters
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun petDao(): PetDao
+
     abstract fun careEventDao(): CareEventDao
 }

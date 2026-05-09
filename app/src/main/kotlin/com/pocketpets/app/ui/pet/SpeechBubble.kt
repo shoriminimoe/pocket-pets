@@ -13,6 +13,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -24,12 +25,13 @@ import kotlinx.coroutines.delay
 @Composable
 fun SpeechBubble(
     phrase: Phrase?,
-    modifier: Modifier = Modifier,
     onDismiss: () -> Unit,
+    modifier: Modifier = Modifier,
     autoDismissMs: Long = 4000,
 ) {
     var translated by remember(phrase) { mutableStateOf(false) }
     var paused by remember(phrase) { mutableStateOf(false) }
+    val currentOnDismiss by rememberUpdatedState(onDismiss)
 
     LaunchedEffect(phrase) {
         if (phrase == null) return@LaunchedEffect
@@ -39,21 +41,21 @@ fun SpeechBubble(
             delay(tick)
             if (!paused) elapsed += tick
         }
-        onDismiss()
+        currentOnDismiss()
     }
 
     AnimatedVisibility(visible = phrase != null, modifier = modifier) {
         if (phrase != null) {
             Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(Color.White)
-                    .border(2.dp, Color(0xFF1A1A2E), RoundedCornerShape(12.dp))
-                    .clickable {
-                        paused = true
-                        translated = !translated
-                    }
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                modifier =
+                    Modifier
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Color.White)
+                        .border(2.dp, Color(0xFF1A1A2E), RoundedCornerShape(12.dp))
+                        .clickable {
+                            paused = true
+                            translated = !translated
+                        }.padding(horizontal = 12.dp, vertical = 8.dp),
             ) {
                 Text(
                     text = if (translated) phrase.translation else phrase.animal,

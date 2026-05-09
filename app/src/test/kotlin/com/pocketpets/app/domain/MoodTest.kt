@@ -14,17 +14,18 @@ class MoodTest {
         happiness: Float = 80f,
         energy: Float = 80f,
         poopCount: Int = 0,
-    ): Pet = Pet(
-        id = 1L,
-        name = "Test",
-        species = Species.CAT,
-        bornAt = Instant.parse("2026-01-01T00:00:00Z"),
-        stats = PetStats(hunger, cleanliness, happiness, energy),
-        lastTickAt = Instant.parse("2026-01-01T00:00:00Z"),
-        isActive = true,
-        poopCount = poopCount,
-        lastFedAt = null,
-    )
+    ): Pet =
+        Pet(
+            id = 1L,
+            name = "Test",
+            species = Species.CAT,
+            bornAt = Instant.parse("2026-01-01T00:00:00Z"),
+            stats = PetStats(hunger, cleanliness, happiness, energy),
+            lastTickAt = Instant.parse("2026-01-01T00:00:00Z"),
+            isActive = true,
+            poopCount = poopCount,
+            lastFedAt = null,
+        )
 
     private val noon = LocalDateTime(2026, 1, 1, 12, 0).toInstant(TimeZone.UTC)
     private val zone = TimeZone.UTC

@@ -1,0 +1,21 @@
+root = true
+
+[*]
+indent_style = space
+end_of_line = lf
+charset = utf-8
+trim_trailing_whitespace = true
+insert_final_newline = true
+
+[*.{kt,kts}]
+indent_size = 4
+ktlint_code_style = ktlint_official
+# Composable functions intentionally use PascalCase per the Compose framework
+# convention; compose-rules provides its own Composable-aware naming check.
+ktlint_function_naming_ignore_when_annotated_with = Composable
+# CompositionLocals deliberately exposed by this app. New entries should be
+# justified — these are the only legitimate uses today.
+compose_allowed_composition_locals = LocalDeepLinkPetId
+
+[*.{xml,yml,yaml,json,toml,md}]
+indent_size = 2

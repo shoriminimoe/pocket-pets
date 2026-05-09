@@ -9,7 +9,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
-class SettingsViewModel(private val store: SettingsDataStore) : ViewModel() {
+class SettingsViewModel(
+    private val store: SettingsDataStore,
+) : ViewModel() {
     private val _settings = MutableStateFlow<NotificationSettings?>(null)
     val settings: StateFlow<NotificationSettings?> = _settings
     private val _timeAccel = MutableStateFlow(false)

@@ -28,34 +28,44 @@ class PetCareWorkerTest {
 
     @Before fun setup() {
         val ctx = ApplicationProvider.getApplicationContext<android.content.Context>()
-        db = Room.inMemoryDatabaseBuilder(ctx, AppDatabase::class.java)
-            .allowMainThreadQueries().build()
+        db =
+            Room
+                .inMemoryDatabaseBuilder(ctx, AppDatabase::class.java)
+                .allowMainThreadQueries()
+                .build()
         repo = PetRepository(db.petDao(), db.careEventDao(), clock)
     }
-    @After fun teardown() { db.close() }
 
-    @Test fun `worker decays all pets`() = runTest {
-        val id = repo.adopt("Whiskers", Species.CAT)
-        clock.advanceBy(4L * 3_600_000)
-        val ctx = ApplicationProvider.getApplicationContext<android.content.Context>()
-        val worker = TestListenableWorkerBuilder<PetCareWorker>(ctx)
-            .setWorkerFactory(object : WorkerFactory() {
-                override fun createWorker(
-                    appContext: android.content.Context,
-                    workerClassName: String,
-                    workerParameters: WorkerParameters,
-                ): ListenableWorker = PetCareWorker(
-                    appContext = appContext,
-                    params = workerParameters,
-                    repo = repo,
-                    settings = SettingsDataStore(appContext),
-                    notifications = NotificationHelper(appContext, SettingsDataStore(appContext), clock),
-                )
-            })
-            .build()
-
-        val result = worker.doWork()
-        assertThat(result).isInstanceOf(ListenableWorker.Result.Success::class.java)
-        assertThat(repo.getById(id)!!.stats.hunger).isWithin(0.01f).of(68f)
+    @After fun teardown() {
+        db.close()
     }
+
+    @Test fun `worker decays all pets`() =
+        runTest {
+            val id = repo.adopt("Whiskers", Species.CAT)
+            clock.advanceBy(4L * 3_600_000)
+            val ctx = ApplicationProvider.getApplicationContext<android.content.Context>()
+            val worker =
+                TestListenableWorkerBuilder<PetCareWorker>(ctx)
+                    .setWorkerFactory(
+                        object : WorkerFactory() {
+                            override fun createWorker(
+                                appContext: android.content.Context,
+                                workerClassName: String,
+                                workerParameters: WorkerParameters,
+                            ): ListenableWorker =
+                                PetCareWorker(
+                                    appContext = appContext,
+                                    params = workerParameters,
+                                    repo = repo,
+                                    settings = SettingsDataStore(appContext),
+                                    notifications = NotificationHelper(appContext, SettingsDataStore(appContext), clock),
+                                )
+                        },
+                    ).build()
+
+            val result = worker.doWork()
+            assertThat(result).isInstanceOf(ListenableWorker.Result.Success::class.java)
+            assertThat(repo.getById(id)!!.stats.hunger).isWithin(0.01f).of(68f)
+        }
 }

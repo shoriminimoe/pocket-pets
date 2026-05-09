@@ -6,7 +6,9 @@ import com.pocketpets.app.di.AppContainer
 import com.pocketpets.app.work.NotificationHelper
 import com.pocketpets.app.work.WorkScheduler
 
-class PocketPetsApp : Application(), Configuration.Provider {
+class PocketPetsApp :
+    Application(),
+    Configuration.Provider {
     lateinit var container: AppContainer
         private set
 

@@ -27,84 +27,123 @@ class PetViewModelTest {
     private val clock = FakeClock(Instant.parse("2026-01-01T12:00:00Z"))
     private val zone = TimeZone.UTC
 
-    private fun samplePet(id: Long = 1, hunger: Float = 80f) = Pet(
-        id = id, name = "Whiskers", species = Species.CAT,
+    private fun samplePet(
+        id: Long = 1,
+        hunger: Float = 80f,
+    ) = Pet(
+        id = id,
+        name = "Whiskers",
+        species = Species.CAT,
         bornAt = clock.now(),
         stats = PetStats(hunger, 80f, 80f, 80f),
-        lastTickAt = clock.now(), isActive = true,
-        poopCount = 0, lastFedAt = null,
+        lastTickAt = clock.now(),
+        isActive = true,
+        poopCount = 0,
+        lastFedAt = null,
     )
 
-    private class FakeRepo(initial: Pet?) : PetRepo {
+    private class FakeRepo(
+        initial: Pet?,
+    ) : PetRepo {
         val activeFlow = MutableStateFlow(initial)
         val calls = mutableListOf<String>()
+
         override fun observeActive(): Flow<Pet?> = activeFlow
+
         override fun observeAll(): Flow<List<Pet>> = MutableStateFlow(listOfNotNull(activeFlow.value))
+
         override suspend fun getById(id: Long) = activeFlow.value?.takeIf { it.id == id }
-        override suspend fun adopt(name: String, species: Species): Long = error("nyi")
+
+        override suspend fun adopt(
+            name: String,
+            species: Species,
+        ): Long = error("nyi")
+
         override suspend fun setActive(id: Long) {}
-        override suspend fun feed(id: Long) { calls += "feed:$id" }
-        override suspend fun clean(id: Long) { calls += "clean:$id" }
-        override suspend fun pet(id: Long) { calls += "pet:$id" }
-        override suspend fun talk(id: Long) { calls += "talk:$id" }
-        override suspend fun runDecayTick(id: Long) { calls += "tick:$id" }
-    }
 
-    private fun newVm(repo: PetRepo, scope: CoroutineScope, seed: Int = 0) =
-        PetViewModel(repo, clock, zone, CatSpeech, rng = Random(seed), externalScope = scope)
+        override suspend fun feed(id: Long) {
+            calls += "feed:$id"
+        }
 
-    @Test fun `displayed mood reflects stats and time`() = runTest {
-        val testScope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
-        val repo = FakeRepo(samplePet(hunger = 20f))
-        val vm = newVm(repo, testScope)
-        try {
-            val state = vm.state.first { it.pet != null }
-            assertThat(state.mood).isEqualTo(Mood.HUNGRY)
-        } finally {
-            testScope.cancel()
+        override suspend fun clean(id: Long) {
+            calls += "clean:$id"
+        }
+
+        override suspend fun pet(id: Long) {
+            calls += "pet:$id"
+        }
+
+        override suspend fun talk(id: Long) {
+            calls += "talk:$id"
+        }
+
+        override suspend fun runDecayTick(id: Long) {
+            calls += "tick:$id"
         }
     }
 
-    @Test fun `feed delegates to repo`() = runTest {
-        val testScope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
-        val repo = FakeRepo(samplePet())
-        val vm = newVm(repo, testScope)
-        try {
-            vm.state.first { it.pet != null }
-            vm.feed()
-            // Unconfined dispatcher: launched coroutines run inline, no scheduling needed.
-            assertThat(repo.calls).contains("feed:1")
-        } finally {
-            testScope.cancel()
-        }
-    }
+    private fun newVm(
+        repo: PetRepo,
+        scope: CoroutineScope,
+        seed: Int = 0,
+    ) = PetViewModel(repo, clock, zone, CatSpeech, rng = Random(seed), externalScope = scope)
 
-    @Test fun `talk emits a phrase from current mood category`() = runTest {
-        val testScope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
-        val repo = FakeRepo(samplePet(hunger = 20f))
-        val vm = newVm(repo, testScope, seed = 7)
-        try {
-            vm.state.first { it.pet != null }
-            vm.talk()
-            val state = vm.state.first { it.activePhrase != null }
-            assertThat(CatSpeech.forMood(Mood.HUNGRY)).contains(state.activePhrase)
-        } finally {
-            testScope.cancel()
+    @Test fun `displayed mood reflects stats and time`() =
+        runTest {
+            val testScope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
+            val repo = FakeRepo(samplePet(hunger = 20f))
+            val vm = newVm(repo, testScope)
+            try {
+                val state = vm.state.first { it.pet != null }
+                assertThat(state.mood).isEqualTo(Mood.HUNGRY)
+            } finally {
+                testScope.cancel()
+            }
         }
-    }
 
-    @Test fun `dismissPhrase clears it`() = runTest {
-        val testScope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
-        val repo = FakeRepo(samplePet(hunger = 20f))
-        val vm = newVm(repo, testScope, seed = 7)
-        try {
-            vm.state.first { it.pet != null }
-            vm.talk()
-            vm.state.first { it.activePhrase != null }
-            vm.dismissPhrase()
-            assertThat(vm.state.first().activePhrase).isNull()
-        } finally {
-            testScope.cancel()
+    @Test fun `feed delegates to repo`() =
+        runTest {
+            val testScope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
+            val repo = FakeRepo(samplePet())
+            val vm = newVm(repo, testScope)
+            try {
+                vm.state.first { it.pet != null }
+                vm.feed()
+                // Unconfined dispatcher: launched coroutines run inline, no scheduling needed.
+                assertThat(repo.calls).contains("feed:1")
+            } finally {
+                testScope.cancel()
+            }
         }
-    }
+
+    @Test fun `talk emits a phrase from current mood category`() =
+        runTest {
+            val testScope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
+            val repo = FakeRepo(samplePet(hunger = 20f))
+            val vm = newVm(repo, testScope, seed = 7)
+            try {
+                vm.state.first { it.pet != null }
+                vm.talk()
+                val state = vm.state.first { it.activePhrase != null }
+                assertThat(CatSpeech.forMood(Mood.HUNGRY)).contains(state.activePhrase)
+            } finally {
+                testScope.cancel()
+            }
+        }
+
+    @Test fun `dismissPhrase clears it`() =
+        runTest {
+            val testScope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
+            val repo = FakeRepo(samplePet(hunger = 20f))
+            val vm = newVm(repo, testScope, seed = 7)
+            try {
+                vm.state.first { it.pet != null }
+                vm.talk()
+                vm.state.first { it.activePhrase != null }
+                vm.dismissPhrase()
+                assertThat(vm.state.first().activePhrase).isNull()
+            } finally {
+                testScope.cancel()
+            }
+        }
 }

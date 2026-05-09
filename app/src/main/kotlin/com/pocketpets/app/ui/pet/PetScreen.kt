@@ -43,11 +43,12 @@ fun PetScreen(
     vm: PetViewModel,
     onOpenSettings: () -> Unit,
     onOpenSelector: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val state by vm.state.collectAsState()
     val pet = state.pet
 
-    Box(modifier = Modifier.fillMaxSize().background(Color(0xFFE9C9B6))) {
+    Box(modifier = modifier.fillMaxSize().background(Color(0xFFE9C9B6))) {
         // Background room art
         Image(
             painter = painterResource(R.drawable.room_bg),
@@ -79,9 +80,10 @@ fun PetScreen(
         // Stat chips just under the top bar
         if (pet != null) {
             Row(
-                modifier = Modifier
-                    .padding(top = 60.dp, start = 8.dp, end = 8.dp)
-                    .fillMaxWidth(),
+                modifier =
+                    Modifier
+                        .padding(top = 60.dp, start = 8.dp, end = 8.dp)
+                        .fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly,
             ) {
                 StatChip("🍗", pet.stats.hunger, Color(0xFFE6843D))
@@ -104,9 +106,13 @@ fun PetScreen(
                     )
                     Spacer(Modifier.height(8.dp))
                     Box(
-                        modifier = Modifier
-                            .size(256.dp)
-                            .clickable { vm.talk(); vm.pet() },
+                        modifier =
+                            Modifier
+                                .size(256.dp)
+                                .clickable {
+                                    vm.talk()
+                                    vm.pet()
+                                },
                     ) {
                         SpriteView(
                             spriteResId = spriteRes,
@@ -117,30 +123,54 @@ fun PetScreen(
                 }
             }
 
+            // Food bowl decor sits at the bottom-left.
+            Image(
+                painter = painterResource(R.drawable.bowl),
+                contentDescription = null,
+                modifier =
+                    Modifier
+                        .align(Alignment.BottomStart)
+                        .padding(start = 24.dp, bottom = 100.dp)
+                        .size(width = 64.dp, height = 32.dp),
+            )
+
             // Poops on the floor — deterministic per pet id
-            val poopOffsets = remember(pet.id) {
-                val rng = Random(pet.id)
-                List(Pet.MAX_POOPS) { rng.nextInt(-100, 100) }
-            }
+            val poopOffsets =
+                remember(pet.id) {
+                    val rng = Random(pet.id)
+                    List(Pet.MAX_POOPS) { rng.nextInt(-100, 100) }
+                }
             repeat(pet.poopCount) { i ->
                 val xOffset = poopOffsets[i]
                 Image(
                     painter = painterResource(R.drawable.poop),
                     contentDescription = null,
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .padding(bottom = (110 + i * 6).dp, start = if (xOffset > 0) xOffset.dp else 0.dp, end = if (xOffset < 0) (-xOffset).dp else 0.dp)
-                        .size(48.dp),
+                    modifier =
+                        Modifier
+                            .align(Alignment.BottomCenter)
+                            .padding(
+                                bottom = (110 + i * 6).dp,
+                                start =
+                                    if (xOffset >
+                                        0
+                                    ) {
+                                        xOffset.dp
+                                    } else {
+                                        0.dp
+                                    },
+                                end = if (xOffset < 0) (-xOffset).dp else 0.dp,
+                            ).size(48.dp),
                 )
             }
         }
 
         // Action buttons
         Row(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth()
-                .padding(16.dp),
+            modifier =
+                Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .padding(16.dp),
             horizontalArrangement = Arrangement.SpaceEvenly,
         ) {
             Button(onClick = vm::feed) { Text("Feed") }
@@ -151,35 +181,53 @@ fun PetScreen(
     }
 }
 
-private fun stageLabel(s: GrowthStage): String = when (s) {
-    GrowthStage.BABY -> "Baby"
-    GrowthStage.JUVENILE -> "Juvenile"
-    GrowthStage.ADULT -> "Adult"
-}
-
-private fun spriteFor(species: Species, stage: GrowthStage, mood: Mood): Int {
-    val stageStr = when (stage) {
-        GrowthStage.BABY -> "baby"
-        GrowthStage.JUVENILE -> "juvenile"
-        GrowthStage.ADULT -> "adult"
+private fun stageLabel(s: GrowthStage): String =
+    when (s) {
+        GrowthStage.BABY -> "Baby"
+        GrowthStage.JUVENILE -> "Juvenile"
+        GrowthStage.ADULT -> "Adult"
     }
-    val moodStr = when (mood) {
-        Mood.IDLE -> "idle"
-        Mood.HAPPY -> "happy"
-        Mood.HUNGRY -> "hungry"
-        Mood.GROSSED_OUT -> "dirty"
-        Mood.SAD -> "sad"
-        Mood.SLEEPY -> "sleep"
-    }
-    val name = "cat_${stageStr}_$moodStr"
-    return runCatching {
-        R.drawable::class.java.getField(name).getInt(null)
-    }.getOrElse { R.drawable.cat_baby_idle }
-}
 
-private fun frameCountFor(mood: Mood): Int = when (mood) {
-    Mood.IDLE -> 4
-    Mood.HAPPY -> 3
-    Mood.SLEEPY -> 4
-    Mood.HUNGRY, Mood.GROSSED_OUT, Mood.SAD -> 1
-}
+@Suppress("UNUSED_PARAMETER", "ktlint:standard:annotation")
+private fun spriteFor(
+    species: Species,
+    stage: GrowthStage,
+    mood: Mood,
+): Int =
+    when (stage) {
+        GrowthStage.BABY ->
+            when (mood) {
+                Mood.IDLE -> R.drawable.cat_baby_idle
+                Mood.HAPPY -> R.drawable.cat_baby_happy
+                Mood.HUNGRY -> R.drawable.cat_baby_hungry
+                Mood.GROSSED_OUT -> R.drawable.cat_baby_dirty
+                Mood.SAD -> R.drawable.cat_baby_sad
+                Mood.SLEEPY -> R.drawable.cat_baby_sleep
+            }
+        GrowthStage.JUVENILE ->
+            when (mood) {
+                Mood.IDLE -> R.drawable.cat_juvenile_idle
+                Mood.HAPPY -> R.drawable.cat_juvenile_happy
+                Mood.HUNGRY -> R.drawable.cat_juvenile_hungry
+                Mood.GROSSED_OUT -> R.drawable.cat_juvenile_dirty
+                Mood.SAD -> R.drawable.cat_juvenile_sad
+                Mood.SLEEPY -> R.drawable.cat_juvenile_sleep
+            }
+        GrowthStage.ADULT ->
+            when (mood) {
+                Mood.IDLE -> R.drawable.cat_adult_idle
+                Mood.HAPPY -> R.drawable.cat_adult_happy
+                Mood.HUNGRY -> R.drawable.cat_adult_hungry
+                Mood.GROSSED_OUT -> R.drawable.cat_adult_dirty
+                Mood.SAD -> R.drawable.cat_adult_sad
+                Mood.SLEEPY -> R.drawable.cat_adult_sleep
+            }
+    }
+
+private fun frameCountFor(mood: Mood): Int =
+    when (mood) {
+        Mood.IDLE -> 4
+        Mood.HAPPY -> 3
+        Mood.SLEEPY -> 4
+        Mood.HUNGRY, Mood.GROSSED_OUT, Mood.SAD -> 1
+    }
