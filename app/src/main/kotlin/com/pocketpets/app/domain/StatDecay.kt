@@ -45,7 +45,7 @@ object StatDecay {
             if (pet.poopCount < Pet.MAX_POOPS) {
                 (pet.poopCount + 1) to null
             } else {
-                pet.poopCount to null  // drop the feeding without spawning if at cap
+                pet.poopCount to null // drop the feeding without spawning if at cap
             }
         } else {
             pet.poopCount to pet.lastFedAt

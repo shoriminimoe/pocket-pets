@@ -61,21 +61,27 @@ class NotificationHelper(
             }
         }
 
-        handle(EVT_HUNGRY,
+        handle(
+            EVT_HUNGRY,
             isLow = pet.stats.hunger < LOW_THRESHOLD,
             isHigh = pet.stats.hunger >= LOW_THRESHOLD + HYSTERESIS,
             on = ns.hungryOn,
-            message = "${pet.name} is hungry!")
-        handle(EVT_DIRTY,
+            message = "${pet.name} is hungry!"
+        )
+        handle(
+            EVT_DIRTY,
             isLow = pet.stats.cleanliness < LOW_THRESHOLD || pet.poopCount >= 2,
             isHigh = pet.stats.cleanliness >= LOW_THRESHOLD + HYSTERESIS && pet.poopCount < 2,
             on = ns.dirtyOn,
-            message = "${pet.name} needs cleaning!")
-        handle(EVT_SAD,
+            message = "${pet.name} needs cleaning!"
+        )
+        handle(
+            EVT_SAD,
             isLow = pet.stats.happiness < LOW_THRESHOLD,
             isHigh = pet.stats.happiness >= LOW_THRESHOLD + HYSTERESIS,
             on = ns.sadOn,
-            message = "${pet.name} misses you")
+            message = "${pet.name} misses you"
+        )
 
         return fired
     }

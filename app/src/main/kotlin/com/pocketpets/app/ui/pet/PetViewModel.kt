@@ -10,6 +10,7 @@ import com.pocketpets.app.domain.StatDecay
 import com.pocketpets.app.domain.speech.Phrase
 import com.pocketpets.app.domain.speech.SpeechBank
 import com.pocketpets.app.util.ticker
+import kotlin.random.Random
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -19,7 +20,6 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
-import kotlin.random.Random
 
 data class PetUiState(
     val pet: Pet? = null,

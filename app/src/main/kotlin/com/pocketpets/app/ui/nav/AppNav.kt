@@ -1,6 +1,7 @@
 package com.pocketpets.app.ui.nav
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -13,7 +14,6 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import androidx.compose.runtime.LaunchedEffect
 import com.pocketpets.app.LocalDeepLinkPetId
 import com.pocketpets.app.PocketPetsApp
 import com.pocketpets.app.domain.speech.CatSpeech
@@ -38,9 +38,11 @@ fun AppNav() {
 
     NavHost(navController = nav, startDestination = start) {
         composable("adopt") {
-            val vm: AdoptViewModel = viewModel(factory = viewModelFactory {
+            val vm: AdoptViewModel = viewModel(
+                factory = viewModelFactory {
                 initializer { AdoptViewModel(container.petRepository) }
-            })
+            }
+            )
             AdoptPetScreen(vm) { _ ->
                 nav.navigate("pet") { popUpTo("adopt") { inclusive = true } }
             }
@@ -51,7 +53,8 @@ fun AppNav() {
             LaunchedEffect(deepLinkId) {
                 if (deepLinkId != null) container.petRepository.setActive(deepLinkId)
             }
-            val petVm: PetViewModel = viewModel(factory = viewModelFactory {
+            val petVm: PetViewModel = viewModel(
+                factory = viewModelFactory {
                 initializer {
                     PetViewModel(
                         repo = container.petRepository,
@@ -60,10 +63,13 @@ fun AppNav() {
                         speech = CatSpeech,
                     )
                 }
-            })
-            val selVm: PetSelectorViewModel = viewModel(factory = viewModelFactory {
+            }
+            )
+            val selVm: PetSelectorViewModel = viewModel(
+                factory = viewModelFactory {
                 initializer { PetSelectorViewModel(container.petRepository) }
-            })
+            }
+            )
             PetScreen(
                 vm = petVm,
                 onOpenSettings = { nav.navigate("settings") },
@@ -82,9 +88,11 @@ fun AppNav() {
             }
         }
         composable("settings") {
-            val vm: SettingsViewModel = viewModel(factory = viewModelFactory {
+            val vm: SettingsViewModel = viewModel(
+                factory = viewModelFactory {
                 initializer { SettingsViewModel(container.settings) }
-            })
+            }
+            )
             SettingsScreen(vm)
         }
     }
