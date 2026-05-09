@@ -26,9 +26,23 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    signingConfigs {
+        // Stable, repo-committed debug keystore so CI-built APKs match
+        // locally-built ones and can be sideloaded over each other without
+        // a forced uninstall. The keystore is debug-only with the
+        // well-known default credentials; it grants no production access.
+        getByName("debug") {
+            storeFile = file("debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
+
     buildTypes {
         debug {
             buildConfigField("boolean", "DEBUG_TIME", "true")
+            signingConfig = signingConfigs.getByName("debug")
         }
         release {
             isMinifyEnabled = false
