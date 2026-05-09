@@ -5,12 +5,16 @@ import kotlinx.datetime.Instant
 enum class GrowthStage {
     BABY,
     JUVENILE,
-    ADULT;
+    ADULT,
+    ;
 
     companion object {
         private const val MS_PER_DAY = 24L * 60 * 60 * 1000
 
-        fun fromAge(bornAt: Instant, now: Instant): GrowthStage {
+        fun fromAge(
+            bornAt: Instant,
+            now: Instant,
+        ): GrowthStage {
             val days = (now.toEpochMilliseconds() - bornAt.toEpochMilliseconds()) / MS_PER_DAY
             return when {
                 days < 3 -> BABY

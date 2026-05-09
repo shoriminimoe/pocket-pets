@@ -19,10 +19,10 @@ import com.pocketpets.app.ui.theme.PocketPetsTheme
 val LocalDeepLinkPetId = compositionLocalOf<Long?> { null }
 
 class MainActivity : ComponentActivity() {
-
-    private val notifPermission = registerForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { /* result ignored — UI fallback already shown when denied */ }
+    private val notifPermission =
+        registerForActivityResult(
+            ActivityResultContracts.RequestPermission(),
+        ) { /* result ignored — UI fallback already shown when denied */ }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

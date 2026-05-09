@@ -168,7 +168,7 @@ def draw_cat_body(d, scale, mood, frame, palette=PAL_CAT):
 def render_pet_sheet(stage, mood):
     scale = {"baby": 0.55, "juvenile": 0.75, "adult": 1.0}[stage]
     frames = {
-        "idle": 4, "eat": 4, "happy": 3, "sleep": 4,
+        "idle": 4, "happy": 3, "sleep": 4,
         "hungry": 1, "dirty": 1, "sad": 1,
     }[mood]
     img = Image.new("RGBA", (64 * frames, 64), (0, 0, 0, 0))
@@ -216,7 +216,7 @@ def render_bowl():
 
 def main():
     stages = ["baby", "juvenile", "adult"]
-    moods = ["idle", "eat", "happy", "sleep", "hungry", "dirty", "sad"]
+    moods = ["idle", "happy", "sleep", "hungry", "dirty", "sad"]
     for stage in stages:
         for mood in moods:
             sheet = render_pet_sheet(stage, mood)

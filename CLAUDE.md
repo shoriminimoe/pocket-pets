@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Build, test, run
 
-Single-module Android (Kotlin + Jetpack Compose), Gradle 8.10, JDK 17, AGP 8.7, compileSdk 35, minSdk 24.
+Single-module Android (Kotlin 2.2 + Jetpack Compose), Gradle 8.11.1, JDK 17, AGP 8.9.3, compileSdk 36, minSdk 24.
 
 | Task | Command |
 |---|---|
@@ -16,9 +16,8 @@ Single-module Android (Kotlin + Jetpack Compose), Gradle 8.10, JDK 17, AGP 8.7, 
 | Lint (Kotlin style) | `./gradlew ktlintCheck` |
 | Auto-fix Kotlin style | `./gradlew ktlintFormat` |
 | Android Lint | `./gradlew :app:lintDebug` |
-| Regenerate Android Lint baseline | `rm app/lint-baseline.xml && ./gradlew :app:lintDebug` |
 
-`JAVA_HOME` must point at a JDK 17 install and `ANDROID_HOME` (or `ANDROID_SDK_ROOT`) at an SDK with `platforms/android-35` + `build-tools/35.0.0`.
+`JAVA_HOME` must point at a JDK 17 install and `ANDROID_HOME` (or `ANDROID_SDK_ROOT`) at an SDK with `platforms/android-36` + `build-tools/36.0.0`.
 
 The unit-test suite uses Robolectric (`sdk=33` pinned via `app/src/test/resources/robolectric.properties`) so all tests run on the JVM — there is no `androidTest/` source set.
 
@@ -64,8 +63,8 @@ Exactly one row in `pets` has `isActive=1`. `PetDao.setActiveExclusive(id)` is `
 
 ## Linting
 
-- **ktlint** runs via the JLLeitschuh Gradle plugin. Rules are pinned in `.editorconfig` (NOT in any Gradle DSL), and we deliberately disable several `standard:` rules that would force cosmetic rewrites of correctly-readable Compose code (multiline-expression-wrapping, function-signature, indent, function-naming, statement-wrapping, etc.). Real bugs (unused imports, naming for non-Composables) still fire.
-- **Android Lint** runs against `:app:lintDebug` with `abortOnError = true` and a baseline at `app/lint-baseline.xml`. The baseline silences pre-existing noise (unused sprite resources looked up via reflection, dependency-update suggestions, etc.) — only **new** issues fail the build. To accept a new issue intentionally, regenerate the baseline (`rm app/lint-baseline.xml && ./gradlew :app:lintDebug` produces a fresh one).
+- **ktlint** runs via the JLLeitschuh Gradle plugin with the default `ktlint_official` style. The Compose-aware ruleset (`io.nlopez.compose.rules:ktlint`) is added so `@Composable` PascalCase coexists with the `function-naming` rule, and `LocalDeepLinkPetId` is on the `compose_allowed_composition_locals` allowlist in `.editorconfig` — add new CompositionLocals there sparingly. ktlint version is pinned to 1.5.0 in `build.gradle.kts` (the latest plugin-bundled version compatible with compose-rules 0.4.22).
+- **Android Lint** runs against `:app:lintDebug` with `abortOnError = true` and `warningsAsErrors = true`, no baseline. The single check that's disabled is `AndroidGradlePluginVersion` — bumping past AGP 8.9.x is a major Gradle/Kotlin/Compose ecosystem migration that needs its own dedicated PR, not a "fix lint" patch.
 - WorkManager's `androidx.startup` content provider is explicitly removed from the manifest (see the `tools:node="remove"` block) because we self-initialise via `Configuration.Provider`; don't put it back.
 
 ## Testing gotchas

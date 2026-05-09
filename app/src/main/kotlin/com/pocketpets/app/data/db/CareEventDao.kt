@@ -11,7 +11,7 @@ interface CareEventDao {
 
     @Query(
         "DELETE FROM care_events WHERE petId = :petId AND id NOT IN " +
-           "(SELECT id FROM care_events WHERE petId = :petId ORDER BY id DESC LIMIT 100)"
+            "(SELECT id FROM care_events WHERE petId = :petId ORDER BY id DESC LIMIT 100)",
     )
     suspend fun pruneToLast100(petId: Long)
 }

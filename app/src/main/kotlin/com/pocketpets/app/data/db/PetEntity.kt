@@ -22,19 +22,34 @@ data class PetEntity(
     val poopCount: Int,
     val lastFedAt: Instant?,
 ) {
-    fun toDomain(): Pet = Pet(
-        id = id, name = name, species = species, bornAt = bornAt,
-        stats = PetStats(hunger, cleanliness, happiness, energy),
-        lastTickAt = lastTickAt, isActive = isActive,
-        poopCount = poopCount, lastFedAt = lastFedAt,
-    )
-    companion object {
-        fun fromDomain(p: Pet) = PetEntity(
-            id = p.id, name = p.name, species = p.species, bornAt = p.bornAt,
-            hunger = p.stats.hunger, cleanliness = p.stats.cleanliness,
-            happiness = p.stats.happiness, energy = p.stats.energy,
-            lastTickAt = p.lastTickAt, isActive = p.isActive,
-            poopCount = p.poopCount, lastFedAt = p.lastFedAt,
+    fun toDomain(): Pet =
+        Pet(
+            id = id,
+            name = name,
+            species = species,
+            bornAt = bornAt,
+            stats = PetStats(hunger, cleanliness, happiness, energy),
+            lastTickAt = lastTickAt,
+            isActive = isActive,
+            poopCount = poopCount,
+            lastFedAt = lastFedAt,
         )
+
+    companion object {
+        fun fromDomain(p: Pet) =
+            PetEntity(
+                id = p.id,
+                name = p.name,
+                species = p.species,
+                bornAt = p.bornAt,
+                hunger = p.stats.hunger,
+                cleanliness = p.stats.cleanliness,
+                happiness = p.stats.happiness,
+                energy = p.stats.energy,
+                lastTickAt = p.lastTickAt,
+                isActive = p.isActive,
+                poopCount = p.poopCount,
+                lastFedAt = p.lastFedAt,
+            )
     }
 }
