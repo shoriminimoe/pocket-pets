@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.3.0](https://github.com/shoriminimoe/pocket-pets/compare/v0.2.0...v0.3.0) (2026-05-09)
+
+
+### Features
+
+* add cat-sprite fetch script with CC0-first candidate list ([1efe40f](https://github.com/shoriminimoe/pocket-pets/commit/1efe40f51a5bbd4881ede9d16a934f72dee7f098))
+* bundle cat sprite (Cat 32x32 by GrafxKid, CC0) ([f7b4c74](https://github.com/shoriminimoe/pocket-pets/commit/f7b4c740c7fefd96dc1545341d3d0029346b7b98))
+* bundle Surt's cat (CC0) repacked + add sprite primitives ([7390271](https://github.com/shoriminimoe/pocket-pets/commit/7390271b989f76c2265184f0d3e8c9f1d0286931))
+* swap cat art to Surt's pixel-art cat, add new sprite renderer ([f6f5841](https://github.com/shoriminimoe/pocket-pets/commit/f6f58414df1fba5621b5025838b50bd5e408d9c0))
+
+
+### Bug Fixes
+
+* address review feedback on PR [#3](https://github.com/shoriminimoe/pocket-pets/issues/3) ([83949e2](https://github.com/shoriminimoe/pocket-pets/commit/83949e215f313e7cd8ee1992646dc4747c75fcf4))
+
 ## [0.2.0](https://github.com/shoriminimoe/pocket-pets/compare/v0.1.0...v0.2.0) (2026-05-09)
 
 
