@@ -211,4 +211,121 @@ class PetViewModelTest {
                 testScope.cancel()
             }
         }
+
+    @Test fun `transition into Eating clears bowl and calls repo feed once`() =
+        runTest {
+            val testScope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
+            val repo = FakeRepo(samplePet())
+            val vm = newVm(repo, testScope)
+            try {
+                vm.state.first { it.pet != null }
+                // Set bowl filled, then simulate the cat reaching the bowl by
+                // overwriting the behaviour to the Eating state directly.
+                vm.onFoodDroppedOnBowl()
+                assertThat(
+                    vm.state
+                        .first()
+                        .world.bowlFilled,
+                ).isTrue()
+
+                val before = vm.behaviorFlow.value
+                val eating =
+                    before.copy(
+                        state = com.pocketpets.app.domain.behavior.CatState.Eating,
+                        stateUntil =
+                            kotlinx.datetime.Instant.fromEpochMilliseconds(
+                                clock.now().toEpochMilliseconds() + 5000L,
+                            ),
+                    )
+                vm.behaviorFlow.value = eating
+
+                // Unconfined dispatcher: the observer collect runs inline with
+                // the .value = assignment above, so by the time we read
+                // repo.calls / state.value here, the dispatch has fired.
+                assertThat(repo.calls.count { it == "feed:1" }).isEqualTo(1)
+                assertThat(
+                    vm.state
+                        .first()
+                        .world.bowlFilled,
+                ).isFalse()
+            } finally {
+                testScope.cancel()
+            }
+        }
+
+    @Test fun `transition into Playing calls repo pet once and toy clears on Playing to Idle`() =
+        runTest {
+            val testScope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
+            val repo = FakeRepo(samplePet())
+            val vm = newVm(repo, testScope)
+            try {
+                vm.state.first { it.pet != null }
+                val toyPos =
+                    com.pocketpets.app.domain.behavior
+                        .Position(60f, 70f)
+                vm.onToyDropped(toyPos)
+                assertThat(
+                    vm.state
+                        .first()
+                        .world.toy,
+                ).isEqualTo(toyPos)
+
+                val before = vm.behaviorFlow.value
+                val playing =
+                    before.copy(
+                        state = com.pocketpets.app.domain.behavior.CatState.Playing,
+                        position = toyPos,
+                        target = toyPos,
+                        stateUntil =
+                            kotlinx.datetime.Instant.fromEpochMilliseconds(
+                                clock.now().toEpochMilliseconds() + 10000L,
+                            ),
+                    )
+                vm.behaviorFlow.value = playing
+
+                assertThat(repo.calls.count { it == "pet:1" }).isEqualTo(1)
+                // Toy still out while Playing.
+                assertThat(
+                    vm.state
+                        .first()
+                        .world.toy,
+                ).isEqualTo(toyPos)
+
+                // Now simulate the Playing→Idle exit.
+                val idle = playing.copy(state = com.pocketpets.app.domain.behavior.CatState.Idle, stateUntil = null)
+                vm.behaviorFlow.value = idle
+                assertThat(
+                    vm.state
+                        .first()
+                        .world.toy,
+                ).isNull()
+            } finally {
+                testScope.cancel()
+            }
+        }
+
+    @Test fun `same-state writes to behaviorFlow do not re-fire side effects`() =
+        runTest {
+            val testScope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
+            val repo = FakeRepo(samplePet())
+            val vm = newVm(repo, testScope)
+            try {
+                vm.state.first { it.pet != null }
+                vm.onFoodDroppedOnBowl()
+                val before = vm.behaviorFlow.value
+                val eating =
+                    before.copy(
+                        state = com.pocketpets.app.domain.behavior.CatState.Eating,
+                        stateUntil =
+                            kotlinx.datetime.Instant.fromEpochMilliseconds(
+                                clock.now().toEpochMilliseconds() + 5000L,
+                            ),
+                    )
+                vm.behaviorFlow.value = eating
+                vm.behaviorFlow.value = eating.copy(position = before.position) // same state, different position
+                assertThat(repo.calls.count { it == "feed:1" }).isEqualTo(1)
+            } finally {
+                testScope.cancel()
+            }
+        }
 }

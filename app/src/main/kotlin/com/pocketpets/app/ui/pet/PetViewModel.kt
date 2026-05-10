@@ -64,7 +64,14 @@ class PetViewModel(
 
     @Volatile private var currentMood: Mood = Mood.IDLE
 
-    private val behaviorFlow: MutableStateFlow<CatBehavior> =
+    /**
+     * The cat's behaviour state, advanced by the frame ticker via
+     * [CatBehaviorRules.tick]. Marked `internal` so unit tests can simulate
+     * specific state transitions without driving the wall-clock-dependent
+     * frame ticker. Not part of the public ViewModel API — UI consumers read
+     * [state] (which exposes a snapshot via [PetUiState.behavior]).
+     */
+    internal val behaviorFlow: MutableStateFlow<CatBehavior> =
         MutableStateFlow(
             CatBehavior(
                 state = CatState.Idle,
@@ -132,6 +139,31 @@ class PetViewModel(
                         world = _world.value,
                     )
                 }
+            }
+        }
+        // Side-effect dispatch on state transitions. Observes behaviorFlow and
+        // fires repo calls / world mutations exactly once per transition. Stays
+        // out of the frame ticker so tests can drive transitions directly via
+        // behaviorFlow.value = newBehavior.
+        scope.launch {
+            var prev: CatBehavior? = null
+            behaviorFlow.collect { current ->
+                val before = prev
+                if (before != null && before.state != current.state) {
+                    when {
+                        current.state == CatState.Eating -> {
+                            _world.value = _world.value.copy(bowlFilled = false)
+                            withActive { repo.feed(it) }
+                        }
+                        current.state == CatState.Playing -> {
+                            withActive { repo.pet(it) }
+                        }
+                        before.state == CatState.Playing && current.state == CatState.Idle -> {
+                            _world.value = _world.value.copy(toy = null)
+                        }
+                    }
+                }
+                prev = current
             }
         }
     }
