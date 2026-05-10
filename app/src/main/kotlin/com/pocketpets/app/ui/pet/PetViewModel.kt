@@ -162,6 +162,20 @@ class PetViewModel(
         currentPhrase.value = null
     }
 
+    fun onFoodDroppedOnBowl() {
+        _world.value = _world.value.copy(bowlFilled = true)
+    }
+
+    fun onScoopDroppedOnPoop(
+        @Suppress("UNUSED_PARAMETER") poopIndex: Int,
+    ) = withActive { repo.clean(it) }
+
+    fun onToyDropped(position: Position) {
+        _world.value = _world.value.copy(toy = position)
+    }
+
+    fun onCatHeld() = withActive { repo.pet(it) }
+
     private fun withActive(block: suspend (Long) -> Unit) {
         val id = state.value.pet?.id ?: return
         scope.launch { block(id) }

@@ -146,4 +146,69 @@ class PetViewModelTest {
                 testScope.cancel()
             }
         }
+
+    @Test fun `onFoodDroppedOnBowl flips world bowlFilled true`() =
+        runTest {
+            val testScope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
+            val repo = FakeRepo(samplePet())
+            val vm = newVm(repo, testScope)
+            try {
+                vm.state.first { it.pet != null }
+                vm.onFoodDroppedOnBowl()
+                val state = vm.state.first { it.world.bowlFilled }
+                assertThat(state.world.bowlFilled).isTrue()
+            } finally {
+                testScope.cancel()
+            }
+        }
+
+    @Test fun `onScoopDroppedOnPoop calls repo clean`() =
+        runTest {
+            val testScope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
+            val repo = FakeRepo(samplePet())
+            val vm = newVm(repo, testScope)
+            try {
+                vm.state.first { it.pet != null }
+                vm.onScoopDroppedOnPoop(0)
+                assertThat(repo.calls).contains("clean:1")
+            } finally {
+                testScope.cancel()
+            }
+        }
+
+    @Test fun `onToyDropped sets world toy position`() =
+        runTest {
+            val testScope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
+            val repo = FakeRepo(samplePet())
+            val vm = newVm(repo, testScope)
+            try {
+                vm.state.first { it.pet != null }
+                vm.onToyDropped(
+                    com.pocketpets.app.domain.behavior
+                        .Position(50f, 60f),
+                )
+                val state = vm.state.first { it.world.toy != null }
+                assertThat(state.world.toy)
+                    .isEqualTo(
+                        com.pocketpets.app.domain.behavior
+                            .Position(50f, 60f),
+                    )
+            } finally {
+                testScope.cancel()
+            }
+        }
+
+    @Test fun `onCatHeld calls repo pet`() =
+        runTest {
+            val testScope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
+            val repo = FakeRepo(samplePet())
+            val vm = newVm(repo, testScope)
+            try {
+                vm.state.first { it.pet != null }
+                vm.onCatHeld()
+                assertThat(repo.calls).contains("pet:1")
+            } finally {
+                testScope.cancel()
+            }
+        }
 }
