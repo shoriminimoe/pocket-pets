@@ -8,7 +8,8 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,7 +17,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -24,18 +24,22 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
@@ -48,8 +52,32 @@ import com.pocketpets.app.domain.behavior.Anchors
 import com.pocketpets.app.domain.behavior.CatState
 import com.pocketpets.app.domain.behavior.HabitatBounds
 import com.pocketpets.app.domain.behavior.Position
+import com.pocketpets.app.ui.inventory.DpRect
+import com.pocketpets.app.ui.inventory.DragController
+import com.pocketpets.app.ui.inventory.DropTarget
+import com.pocketpets.app.ui.inventory.InventoryTray
+import com.pocketpets.app.ui.inventory.Item
+import com.pocketpets.app.ui.inventory.dropTargetAt
 import com.pocketpets.app.ui.sprite.AnimatedSprite
 import kotlin.random.Random
+
+private fun poopRectFor(
+    i: Int,
+    offsets: List<Int>,
+    screenWidthDp: Float,
+    screenHeightDp: Float,
+): DpRect {
+    val sizeDp = 48f
+    val centerX = screenWidthDp / 2f + offsets[i] - sizeDp / 2f
+    val bottomMargin = (110 + i * 6).toFloat()
+    val top = screenHeightDp - bottomMargin - sizeDp
+    return DpRect(
+        left = centerX,
+        top = top,
+        right = centerX + sizeDp,
+        bottom = top + sizeDp,
+    )
+}
 
 @Composable
 fun PetScreen(
@@ -62,6 +90,13 @@ fun PetScreen(
     val pet = state.pet
 
     val density = LocalDensity.current
+    var habitatBoundsState by remember { mutableStateOf<HabitatBounds?>(null) }
+    var habitatAnchorsState by remember { mutableStateOf<Anchors?>(null) }
+    var screenWidthDp by remember { mutableFloatStateOf(0f) }
+    var screenHeightDp by remember { mutableFloatStateOf(0f) }
+    val dragController = remember { DragController() }
+    val slotRects = remember { mutableStateMapOf<Item, DpRect>() }
+
     Box(modifier = modifier.fillMaxSize().background(Color(0xFFE9C9B6))) {
         // Background room art. onSizeChanged reports floor bounds + anchors
         // so the ViewModel's behavior tick can keep the cat on the floor.
@@ -76,7 +111,7 @@ fun PetScreen(
                             val widthDp = sizePx.width.toDp().value
                             val heightDp = sizePx.height.toDp().value
                             // Floor is the lower portion of the room. Numbers
-                            // keep the cat above the action button row.
+                            // keep the cat above the inventory tray.
                             val floorTopDp = heightDp * 0.40f
                             val floorBottomDp = heightDp * 0.85f
                             val spriteDp = 64f
@@ -100,6 +135,10 @@ fun PetScreen(
                                             y = (floorBottomDp - spriteDp - 16f).coerceAtLeast(floorTopDp),
                                         ),
                                 )
+                            screenWidthDp = widthDp
+                            screenHeightDp = heightDp
+                            habitatBoundsState = bounds
+                            habitatAnchorsState = anchors
                             vm.setHabitat(bounds, anchors)
                         }
                     },
@@ -155,9 +194,8 @@ fun PetScreen(
                     Modifier
                         .offset(x = behavior.position.x.dp, y = behavior.position.y.dp)
                         .size(spriteSize)
-                        .clickable {
-                            vm.talk()
-                            vm.pet()
+                        .pointerInput(Unit) {
+                            detectTapGestures(onLongPress = { vm.onCatHeld() })
                         },
             ) {
                 AnimatedSprite(
@@ -191,10 +229,14 @@ fun PetScreen(
                 )
             }
         }
+
         if (pet != null) {
-            // Food bowl decor sits at the bottom-left.
+            // Food bowl decor sits at the bottom-left. Switches to bowl_full when filled.
             Image(
-                painter = painterResource(R.drawable.bowl),
+                painter =
+                    painterResource(
+                        if (state.world.bowlFilled) R.drawable.bowl_full else R.drawable.bowl,
+                    ),
                 contentDescription = null,
                 modifier =
                     Modifier
@@ -202,6 +244,18 @@ fun PetScreen(
                         .padding(start = 24.dp, bottom = 100.dp)
                         .size(width = 64.dp, height = 32.dp),
             )
+
+            // Toy on the floor when present
+            state.world.toy?.let { toyPos ->
+                Image(
+                    painter = painterResource(R.drawable.toy),
+                    contentDescription = null,
+                    modifier =
+                        Modifier
+                            .offset(x = toyPos.x.dp, y = toyPos.y.dp)
+                            .size(48.dp),
+                )
+            }
 
             // Poops on the floor — deterministic per pet id
             val poopOffsets =
@@ -224,21 +278,94 @@ fun PetScreen(
                             ).size(48.dp),
                 )
             }
+
+            // Inventory tray with drag-gesture handler
+            Box(
+                modifier =
+                    Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth()
+                        .pointerInput(pet.id) {
+                            detectDragGesturesAfterLongPress(
+                                onDragStart = { startOffset ->
+                                    val startDp =
+                                        with(density) {
+                                            Position(
+                                                startOffset.x.toDp().value,
+                                                startOffset.y.toDp().value,
+                                            )
+                                        }
+                                    val pickedItem =
+                                        slotRects.entries
+                                            .firstOrNull { (_, r) -> r.contains(startDp) }
+                                            ?.key
+                                    if (pickedItem != null) dragController.start(pickedItem)
+                                },
+                                onDrag = { change, _ ->
+                                    change.consume()
+                                    val cp = change.position
+                                    val pos =
+                                        with(density) {
+                                            Position(
+                                                cp.x.toDp().value,
+                                                cp.y.toDp().value,
+                                            )
+                                        }
+                                    dragController.move(pos)
+                                },
+                                onDragEnd = {
+                                    val ended =
+                                        dragController.end() ?: return@detectDragGesturesAfterLongPress
+                                    val bounds =
+                                        habitatBoundsState ?: return@detectDragGesturesAfterLongPress
+                                    val anchors =
+                                        habitatAnchorsState ?: return@detectDragGesturesAfterLongPress
+                                    val poopRects =
+                                        (0 until pet.poopCount).map { i ->
+                                            poopRectFor(i, poopOffsets, screenWidthDp, screenHeightDp)
+                                        }
+                                    val target =
+                                        dropTargetAt(
+                                            position = ended.position,
+                                            item = ended.item,
+                                            bounds = bounds,
+                                            anchors = anchors,
+                                            poopRects = poopRects,
+                                        ) ?: return@detectDragGesturesAfterLongPress
+                                    when (target) {
+                                        DropTarget.Bowl -> vm.onFoodDroppedOnBowl()
+                                        is DropTarget.Poop -> vm.onScoopDroppedOnPoop(target.index)
+                                        is DropTarget.Floor -> vm.onToyDropped(target.position)
+                                    }
+                                },
+                                onDragCancel = { dragController.end() },
+                            )
+                        },
+            ) {
+                InventoryTray(
+                    onSlotPositionChange = { item, leftDp, topDp, sizeDp ->
+                        slotRects[item] = DpRect(leftDp, topDp, leftDp + sizeDp, topDp + sizeDp)
+                    },
+                )
+            }
         }
 
-        // Action buttons
-        Row(
-            modifier =
-                Modifier
-                    .align(Alignment.BottomCenter)
-                    .fillMaxWidth()
-                    .padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceEvenly,
-        ) {
-            Button(onClick = vm::feed) { Text("Feed") }
-            Button(onClick = vm::clean) { Text("Clean") }
-            Button(onClick = vm::pet) { Text("Pet") }
-            Button(onClick = vm::talk) { Text("Talk") }
+        // Drag overlay — renders the in-flight item icon at the pointer position.
+        dragController.inFlight?.let { drag ->
+            val drawableId =
+                when (drag.item) {
+                    Item.Food -> R.drawable.food
+                    Item.Scoop -> R.drawable.scoop
+                    Item.Toy -> R.drawable.toy
+                }
+            Image(
+                painter = painterResource(drawableId),
+                contentDescription = null,
+                modifier =
+                    Modifier
+                        .offset(x = (drag.position.x - 32f).dp, y = (drag.position.y - 32f).dp)
+                        .size(64.dp),
+            )
         }
     }
 }
