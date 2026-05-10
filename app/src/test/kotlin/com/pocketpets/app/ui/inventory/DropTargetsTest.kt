@@ -1,14 +1,13 @@
 package com.pocketpets.app.ui.inventory
 
 import com.google.common.truth.Truth.assertThat
-import com.pocketpets.app.domain.behavior.Anchors
 import com.pocketpets.app.domain.behavior.HabitatBounds
 import com.pocketpets.app.domain.behavior.Position
 import org.junit.Test
 
 class DropTargetsTest {
     private val bounds = HabitatBounds(0f, 0f, 200f, 200f)
-    private val anchors = Anchors(bed = Position(160f, 160f), bowl = Position(20f, 160f))
+    private val bowlRect = DpRect(20f, 160f, 84f, 192f)
     private val poopRects =
         listOf(
             DpRect(80f, 100f, 128f, 148f),
@@ -19,11 +18,11 @@ class DropTargetsTest {
         item: Item,
         x: Float,
         y: Float,
-    ) = dropTargetAt(Position(x, y), item, bounds, anchors, poopRects)
+    ) = dropTargetAt(Position(x, y), item, bounds, bowlRect, poopRects)
 
     @Test
     fun `food on the bowl resolves to Bowl`() {
-        assertThat(resolve(Item.Food, anchors.bowl.x + 10f, anchors.bowl.y + 10f))
+        assertThat(resolve(Item.Food, bowlRect.left + 10f, bowlRect.top + 10f))
             .isEqualTo(DropTarget.Bowl)
     }
 
@@ -51,7 +50,7 @@ class DropTargetsTest {
 
     @Test
     fun `scoop on the bowl resolves to null (scoop only on poops)`() {
-        assertThat(resolve(Item.Scoop, anchors.bowl.x + 10f, anchors.bowl.y + 10f)).isNull()
+        assertThat(resolve(Item.Scoop, bowlRect.left + 10f, bowlRect.top + 10f)).isNull()
     }
 
     @Test
@@ -77,7 +76,7 @@ class DropTargetsTest {
 
     @Test
     fun `toy on the bowl resolves to Floor at the bowl coordinates (toy doesn't claim bowl)`() {
-        val out = resolve(Item.Toy, anchors.bowl.x + 10f, anchors.bowl.y + 10f)
-        assertThat(out).isEqualTo(DropTarget.Floor(Position(anchors.bowl.x + 10f, anchors.bowl.y + 10f)))
+        val out = resolve(Item.Toy, bowlRect.left + 10f, bowlRect.top + 10f)
+        assertThat(out).isEqualTo(DropTarget.Floor(Position(bowlRect.left + 10f, bowlRect.top + 10f)))
     }
 }

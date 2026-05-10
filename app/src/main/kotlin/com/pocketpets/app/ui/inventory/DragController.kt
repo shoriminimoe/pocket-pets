@@ -20,8 +20,11 @@ class DragController {
     var inFlight: DragInFlight? by mutableStateOf(null)
         private set
 
-    fun start(item: Item) {
-        inFlight = DragInFlight(item, Position(0f, 0f))
+    fun start(
+        item: Item,
+        initialPosition: Position,
+    ) {
+        inFlight = DragInFlight(item, initialPosition)
     }
 
     fun move(position: Position) {

@@ -38,10 +38,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
@@ -280,35 +283,47 @@ fun PetScreen(
             }
 
             // Inventory tray with drag-gesture handler
+            var trayRootOffsetPx by remember { mutableStateOf(Offset.Zero) }
             Box(
                 modifier =
                     Modifier
                         .align(Alignment.BottomCenter)
                         .fillMaxWidth()
-                        .pointerInput(pet.id) {
+                        .onGloballyPositioned { coords ->
+                            trayRootOffsetPx = coords.positionInRoot()
+                        }.pointerInput(pet.id) {
                             detectDragGesturesAfterLongPress(
-                                onDragStart = { startOffset ->
+                                onDragStart = { localOffset ->
+                                    val rootPx =
+                                        Offset(
+                                            localOffset.x + trayRootOffsetPx.x,
+                                            localOffset.y + trayRootOffsetPx.y,
+                                        )
                                     val startDp =
                                         with(density) {
                                             Position(
-                                                startOffset.x.toDp().value,
-                                                startOffset.y.toDp().value,
+                                                rootPx.x.toDp().value,
+                                                rootPx.y.toDp().value,
                                             )
                                         }
                                     val pickedItem =
                                         slotRects.entries
                                             .firstOrNull { (_, r) -> r.contains(startDp) }
                                             ?.key
-                                    if (pickedItem != null) dragController.start(pickedItem)
+                                    if (pickedItem != null) dragController.start(pickedItem, startDp)
                                 },
                                 onDrag = { change, _ ->
                                     change.consume()
-                                    val cp = change.position
+                                    val rootPx =
+                                        Offset(
+                                            change.position.x + trayRootOffsetPx.x,
+                                            change.position.y + trayRootOffsetPx.y,
+                                        )
                                     val pos =
                                         with(density) {
                                             Position(
-                                                cp.x.toDp().value,
-                                                cp.y.toDp().value,
+                                                rootPx.x.toDp().value,
+                                                rootPx.y.toDp().value,
                                             )
                                         }
                                     dragController.move(pos)
@@ -318,18 +333,23 @@ fun PetScreen(
                                         dragController.end() ?: return@detectDragGesturesAfterLongPress
                                     val bounds =
                                         habitatBoundsState ?: return@detectDragGesturesAfterLongPress
-                                    val anchors =
-                                        habitatAnchorsState ?: return@detectDragGesturesAfterLongPress
                                     val poopRects =
                                         (0 until pet.poopCount).map { i ->
                                             poopRectFor(i, poopOffsets, screenWidthDp, screenHeightDp)
                                         }
+                                    val bowlRect =
+                                        DpRect(
+                                            left = 24f,
+                                            top = screenHeightDp - 132f,
+                                            right = 24f + 64f,
+                                            bottom = screenHeightDp - 132f + 32f,
+                                        )
                                     val target =
                                         dropTargetAt(
                                             position = ended.position,
                                             item = ended.item,
                                             bounds = bounds,
-                                            anchors = anchors,
+                                            bowlRect = bowlRect,
                                             poopRects = poopRects,
                                         ) ?: return@detectDragGesturesAfterLongPress
                                     when (target) {
