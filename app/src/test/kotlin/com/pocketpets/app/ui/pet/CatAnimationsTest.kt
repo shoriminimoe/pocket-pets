@@ -3,6 +3,8 @@ package com.pocketpets.app.ui.pet
 import com.google.common.collect.Range
 import com.google.common.truth.Truth.assertThat
 import com.pocketpets.app.domain.behavior.CatState
+import com.pocketpets.app.ui.sprite.Direction
+import com.pocketpets.app.ui.sprite.requireFacingFits
 import org.junit.Test
 
 class CatAnimationsTest {
@@ -28,5 +30,34 @@ class CatAnimationsTest {
     fun `idle uses sit and lying uses lay`() {
         assertThat(CatAnimations.forState(CatState.Idle)).isEqualTo(CatAnimations.sit)
         assertThat(CatAnimations.forState(CatState.Lying)).isEqualTo(CatAnimations.lay)
+    }
+
+    @Test
+    fun `facingFor coerces non-walking states to SOUTH`() {
+        for (facing in Direction.values()) {
+            assertThat(CatAnimations.facingFor(CatState.Idle, facing)).isEqualTo(Direction.SOUTH)
+            assertThat(CatAnimations.facingFor(CatState.Lying, facing)).isEqualTo(Direction.SOUTH)
+        }
+    }
+
+    @Test
+    fun `facingFor preserves the behavior facing while walking`() {
+        for (facing in Direction.values()) {
+            assertThat(CatAnimations.facingFor(CatState.Walking, facing)).isEqualTo(facing)
+        }
+    }
+
+    @Test
+    fun `every state and behavior facing combination resolves to a renderable cell`() {
+        // Regression guard for the crash on non-south arrivals: any (state, facing)
+        // pair that PetScreen could feed into AnimatedSprite must pass the renderer's
+        // bounds check after going through facingFor.
+        for (state in CatState.values()) {
+            for (facing in Direction.values()) {
+                val anim = CatAnimations.forState(state)
+                val renderFacing = CatAnimations.facingFor(state, facing)
+                requireFacingFits(anim, renderFacing)
+            }
+        }
     }
 }

@@ -172,7 +172,7 @@ fun PetScreen(
                                     it
                                 }
                             },
-                    facing = behavior.facing,
+                    facing = CatAnimations.facingFor(behavior.state, behavior.facing),
                 )
                 MoodOverlay(
                     mood = state.mood,

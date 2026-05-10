@@ -2,6 +2,7 @@ package com.pocketpets.app.ui.pet
 
 import com.pocketpets.app.R
 import com.pocketpets.app.domain.behavior.CatState
+import com.pocketpets.app.ui.sprite.Direction
 import com.pocketpets.app.ui.sprite.SpriteAnimation
 import com.pocketpets.app.ui.sprite.SpriteSheet
 
@@ -37,5 +38,23 @@ object CatAnimations {
             CatState.Walking -> walk
             CatState.Idle -> sit
             CatState.Lying -> lay
+        }
+
+    /**
+     * Returns the [Direction] to pass to [com.pocketpets.app.ui.sprite.AnimatedSprite]
+     * for a cat in [state] whose behavior facing is [behaviorFacing].
+     *
+     * Walk frames live on rows 0..3 (S/N/W/E). Sit and lay are single-cell poses on
+     * rows 4 and 5 respectively, with no directional siblings. Forwarding a non-SOUTH
+     * facing on those poses would have AnimatedSprite read row 4+offset / 5+offset
+     * which is out of bounds for the 6-row sheet — so we coerce to SOUTH.
+     */
+    fun facingFor(
+        state: CatState,
+        behaviorFacing: Direction,
+    ): Direction =
+        when (state) {
+            CatState.Walking -> behaviorFacing
+            CatState.Idle, CatState.Lying -> Direction.SOUTH
         }
 }
