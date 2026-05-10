@@ -3,7 +3,7 @@
 # requires-python = ">=3.11"
 # dependencies = ["Pillow>=10"]
 # ///
-"""Generate decor PNGs (poop, room background, food bowl).
+"""Generate decor PNGs (poop, room background, bowl, food, scoop, toy).
 
 Deterministic: re-running yields identical bytes. Outputs to
 app/src/main/res/drawable-nodpi/. Cat sprites are sourced separately
