@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -36,11 +37,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import com.pocketpets.app.R
 import com.pocketpets.app.domain.GrowthStage
 import com.pocketpets.app.domain.Pet
+import com.pocketpets.app.domain.behavior.Anchors
+import com.pocketpets.app.domain.behavior.CatState
+import com.pocketpets.app.domain.behavior.HabitatBounds
+import com.pocketpets.app.domain.behavior.Position
 import com.pocketpets.app.ui.sprite.AnimatedSprite
 import kotlin.random.Random
 
@@ -54,12 +61,48 @@ fun PetScreen(
     val state by vm.state.collectAsState()
     val pet = state.pet
 
+    val density = LocalDensity.current
     Box(modifier = modifier.fillMaxSize().background(Color(0xFFE9C9B6))) {
-        // Background room art
+        // Background room art. onSizeChanged reports floor bounds + anchors
+        // so the ViewModel's behavior tick can keep the cat on the floor.
         Image(
             painter = painterResource(R.drawable.room_bg),
             contentDescription = null,
-            modifier = Modifier.fillMaxSize(),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .onSizeChanged { sizePx ->
+                        with(density) {
+                            val widthDp = sizePx.width.toDp().value
+                            val heightDp = sizePx.height.toDp().value
+                            // Floor is the lower portion of the room. Numbers
+                            // keep the cat above the action button row.
+                            val floorTopDp = heightDp * 0.40f
+                            val floorBottomDp = heightDp * 0.85f
+                            val spriteDp = 64f
+                            val bounds =
+                                HabitatBounds(
+                                    minX = 0f,
+                                    minY = floorTopDp,
+                                    maxX = (widthDp - spriteDp).coerceAtLeast(1f),
+                                    maxY = (floorBottomDp - spriteDp).coerceAtLeast(floorTopDp + 1f),
+                                )
+                            val anchors =
+                                Anchors(
+                                    bed =
+                                        Position(
+                                            x = (widthDp - spriteDp - 24f).coerceAtLeast(0f),
+                                            y = (floorBottomDp - spriteDp - 16f).coerceAtLeast(floorTopDp),
+                                        ),
+                                    bowl =
+                                        Position(
+                                            x = 24f,
+                                            y = (floorBottomDp - spriteDp - 16f).coerceAtLeast(floorTopDp),
+                                        ),
+                                )
+                            vm.setHabitat(bounds, anchors)
+                        }
+                    },
             contentScale = ContentScale.FillBounds,
         )
 
@@ -99,45 +142,56 @@ fun PetScreen(
             }
         }
 
-        // Pet sprite (centered) + speech bubble above it
-        if (pet != null) {
-            val animation = CatAnimations.forMood(state.stage, state.mood)
+        // Pet sprite (offsetted by behavior.position) + speech bubble above it
+        val behavior = state.behavior
+        if (pet != null && behavior != null) {
+            val animation = CatAnimations.forState(behavior.state)
             val spriteSize = stageSpriteSize(state.stage)
             val breathingScale = rememberBreathingScale()
+            val applyBreathing = behavior.state != CatState.Walking
 
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    SpeechBubble(
-                        phrase = state.activePhrase,
-                        onDismiss = vm::dismissPhrase,
-                    )
-                    Spacer(Modifier.height(8.dp))
-                    Box(
-                        modifier =
-                            Modifier
-                                .size(spriteSize)
-                                .clickable {
-                                    vm.talk()
-                                    vm.pet()
-                                },
-                    ) {
-                        AnimatedSprite(
-                            animation = animation,
-                            modifier =
-                                Modifier
-                                    .fillMaxSize()
-                                    // Vertical-only puff so the chest rises/falls
-                                    // instead of squashing horizontally.
-                                    .scale(scaleX = 1f, scaleY = breathingScale),
-                        )
-                        MoodOverlay(
-                            mood = state.mood,
-                            modifier = Modifier.fillMaxSize(),
-                        )
-                    }
-                }
+            Box(
+                modifier =
+                    Modifier
+                        .offset(x = behavior.position.x.dp, y = behavior.position.y.dp)
+                        .size(spriteSize)
+                        .clickable {
+                            vm.talk()
+                            vm.pet()
+                        },
+            ) {
+                AnimatedSprite(
+                    animation = animation,
+                    modifier =
+                        Modifier
+                            .fillMaxSize()
+                            .let {
+                                if (applyBreathing) {
+                                    it.scale(scaleX = 1f, scaleY = breathingScale)
+                                } else {
+                                    it
+                                }
+                            },
+                    facing = CatAnimations.facingFor(behavior.state, behavior.facing),
+                )
+                MoodOverlay(
+                    mood = state.mood,
+                    modifier = Modifier.fillMaxSize(),
+                )
             }
-
+            // Speech bubble appears above the cat at its current position.
+            Box(
+                modifier =
+                    Modifier
+                        .offset(x = behavior.position.x.dp, y = (behavior.position.y - 64f).dp),
+            ) {
+                SpeechBubble(
+                    phrase = state.activePhrase,
+                    onDismiss = vm::dismissPhrase,
+                )
+            }
+        }
+        if (pet != null) {
             // Food bowl decor sits at the bottom-left.
             Image(
                 painter = painterResource(R.drawable.bowl),
