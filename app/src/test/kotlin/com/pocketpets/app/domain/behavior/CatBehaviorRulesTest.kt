@@ -264,4 +264,58 @@ class CatBehaviorRulesTest {
         val out = CatBehaviorRules.tick(b, t0, 100f, Mood.IDLE, bounds, anchors, Random(0))
         assertThat(out.position).isEqualTo(Position(100f, 0f))
     }
+
+    @Test
+    fun `toy in world preempts random idle wander`() {
+        val toy = Position(60f, 70f)
+        val world = HabitatWorld(toy = toy)
+        val b = behavior(state = CatState.Idle, x = 10f, y = 10f, targetX = 10f, targetY = 10f)
+        val out =
+            CatBehaviorRules.tick(
+                b, t0, 0.016f, Mood.IDLE, bounds, anchors, Random(0),
+                world = world,
+            )
+        assertThat(out.state).isEqualTo(CatState.Walking)
+        assertThat(out.target).isEqualTo(toy)
+    }
+
+    @Test
+    fun `toy in world preempts hungry+filled-bowl pull`() {
+        val toy = Position(60f, 70f)
+        val world = HabitatWorld(bowlFilled = true, toy = toy)
+        val b = behavior(state = CatState.Idle, x = 10f, y = 10f, targetX = 10f, targetY = 10f)
+        val out =
+            CatBehaviorRules.tick(
+                b, t0, 0.016f, Mood.HUNGRY, bounds, anchors, Random(0),
+                world = world,
+            )
+        assertThat(out.state).isEqualTo(CatState.Walking)
+        assertThat(out.target).isEqualTo(toy)
+    }
+
+    @Test
+    fun `sleepy beats toy — sleepy cat still goes to bed even with toy out`() {
+        val toy = Position(60f, 70f)
+        val world = HabitatWorld(toy = toy)
+        val b = behavior(state = CatState.Idle, x = 10f, y = 10f, targetX = 10f, targetY = 10f)
+        val out =
+            CatBehaviorRules.tick(
+                b, t0, 0.016f, Mood.SLEEPY, bounds, anchors, Random(0),
+                world = world,
+            )
+        assertThat(out.target).isEqualTo(anchors.bed)
+    }
+
+    @Test
+    fun `walking cat redirects to a toy thrown mid-walk`() {
+        val toy = Position(60f, 70f)
+        val world = HabitatWorld(toy = toy)
+        val b = behavior(state = CatState.Walking, x = 50f, y = 50f, targetX = 100f, targetY = 50f)
+        val out =
+            CatBehaviorRules.tick(
+                b, t0, 0.016f, Mood.IDLE, bounds, anchors, Random(0),
+                world = world,
+            )
+        assertThat(out.target).isEqualTo(toy)
+    }
 }

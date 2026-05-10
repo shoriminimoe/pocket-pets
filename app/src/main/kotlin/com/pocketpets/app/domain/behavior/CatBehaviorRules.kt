@@ -106,28 +106,30 @@ object CatBehaviorRules {
             return b
         }
 
-        // Mood-driven anchor target preempts everything else, but a hungry cat
-        // only routes to the bowl when there's actually food in it.
-        val moodAnchor: Position? =
-            when (mood) {
-                Mood.SLEEPY -> anchors.bed
-                Mood.HUNGRY -> if (world.bowlFilled) anchors.bowl else null
+        // Target priority: SLEEPY bed > thrown toy > HUNGRY+filled bowl > nothing.
+        // SLEEPY beats toy because going to sleep is a stronger drive than play;
+        // toy beats a hungry cat so a thrown toy redirects mid-walk to the bowl.
+        val targetOverride: Position? =
+            when {
+                mood == Mood.SLEEPY -> anchors.bed
+                world.toy != null -> world.toy
+                mood == Mood.HUNGRY && world.bowlFilled -> anchors.bowl
                 else -> null
             }
 
         // Lying cat with no reason to move stays put.
         if (b.state == CatState.Lying) {
-            if (moodAnchor != null && moodAnchor == b.position) return b
+            if (targetOverride != null && targetOverride == b.position) return b
             if (mood == Mood.SLEEPY) return b
             // Wake up and walk somewhere.
-            val target = moodAnchor ?: pickTarget(mood, bounds, anchors, rng, world)
+            val target = targetOverride ?: pickTarget(mood, bounds, anchors, rng, world)
             return walkingToward(b, target)
         }
 
         // Idle cat: start moving if mood demands it, or the wander timer fired.
         if (b.state == CatState.Idle) {
             return when {
-                moodAnchor != null && moodAnchor != b.position -> walkingToward(b, moodAnchor)
+                targetOverride != null && targetOverride != b.position -> walkingToward(b, targetOverride)
                 now >= b.nextWanderAt ->
                     walkingToward(
                         b,
@@ -137,8 +139,8 @@ object CatBehaviorRules {
             }
         }
 
-        // Walking cat. Possibly retarget to the mood anchor; then advance.
-        val effectiveTarget = moodAnchor ?: b.target
+        // Walking cat. Possibly retarget to the override; then advance.
+        val effectiveTarget = targetOverride ?: b.target
         val advanced = advance(b.position, effectiveTarget, speedDpPerSec, dtSeconds)
         val arrived = isArrived(advanced, effectiveTarget)
         return when {
