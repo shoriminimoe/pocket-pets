@@ -65,7 +65,15 @@ object CatBehaviorRules {
     ): Position =
         when (mood) {
             Mood.SLEEPY -> anchors.bed
-            Mood.HUNGRY -> anchors.bowl
+            Mood.HUNGRY ->
+                if (world.bowlFilled) {
+                    anchors.bowl
+                } else {
+                    Position(
+                        x = rng.nextFloatInRange(bounds.minX, bounds.maxX),
+                        y = rng.nextFloatInRange(bounds.minY, bounds.maxY),
+                    )
+                }
             else ->
                 Position(
                     x = rng.nextFloatInRange(bounds.minX, bounds.maxX),
@@ -98,11 +106,12 @@ object CatBehaviorRules {
             return b
         }
 
-        // Mood-driven anchor target preempts everything else.
+        // Mood-driven anchor target preempts everything else, but a hungry cat
+        // only routes to the bowl when there's actually food in it.
         val moodAnchor: Position? =
             when (mood) {
                 Mood.SLEEPY -> anchors.bed
-                Mood.HUNGRY -> anchors.bowl
+                Mood.HUNGRY -> if (world.bowlFilled) anchors.bowl else null
                 else -> null
             }
 
@@ -111,7 +120,7 @@ object CatBehaviorRules {
             if (moodAnchor != null && moodAnchor == b.position) return b
             if (mood == Mood.SLEEPY) return b
             // Wake up and walk somewhere.
-            val target = moodAnchor ?: pickTarget(mood, bounds, anchors, rng)
+            val target = moodAnchor ?: pickTarget(mood, bounds, anchors, rng, world)
             return walkingToward(b, target)
         }
 
@@ -122,7 +131,7 @@ object CatBehaviorRules {
                 now >= b.nextWanderAt ->
                     walkingToward(
                         b,
-                        pickTarget(mood, bounds, anchors, rng),
+                        pickTarget(mood, bounds, anchors, rng, world),
                     )
                 else -> b
             }

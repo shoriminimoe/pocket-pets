@@ -3,6 +3,7 @@ package com.pocketpets.app.domain.behavior
 import com.google.common.collect.Range
 import com.google.common.truth.Truth.assertThat
 import com.pocketpets.app.domain.Mood
+import com.pocketpets.app.domain.behavior.HabitatWorld
 import com.pocketpets.app.ui.sprite.Direction
 import kotlinx.datetime.Instant
 import org.junit.Test
@@ -96,9 +97,23 @@ class CatBehaviorRulesTest {
     }
 
     @Test
-    fun `pickTarget chooses bowl when hungry`() {
-        assertThat(CatBehaviorRules.pickTarget(Mood.HUNGRY, bounds, anchors, Random(0)))
+    fun `pickTarget chooses bowl when hungry and bowl is filled`() {
+        val world = HabitatWorld(bowlFilled = true)
+        assertThat(CatBehaviorRules.pickTarget(Mood.HUNGRY, bounds, anchors, Random(0), world))
             .isEqualTo(anchors.bowl)
+    }
+
+    @Test
+    fun `pickTarget hungry with empty bowl falls through to a random point in bounds`() {
+        val world = HabitatWorld(bowlFilled = false)
+        for (seed in 0..20) {
+            val t = CatBehaviorRules.pickTarget(Mood.HUNGRY, bounds, anchors, Random(seed.toLong()), world)
+            assertThat(t).isNotEqualTo(anchors.bowl)
+            assertThat(t.x).isAtLeast(bounds.minX)
+            assertThat(t.x).isAtMost(bounds.maxX)
+            assertThat(t.y).isAtLeast(bounds.minY)
+            assertThat(t.y).isAtMost(bounds.maxY)
+        }
     }
 
     @Test
@@ -189,11 +204,27 @@ class CatBehaviorRulesTest {
     }
 
     @Test
-    fun `idle cat that becomes hungry walks toward bowl`() {
+    fun `idle cat that becomes hungry walks toward filled bowl`() {
         val b = behavior(state = CatState.Idle, x = 50f, y = 50f, targetX = 50f, targetY = 50f)
-        val out = CatBehaviorRules.tick(b, t0, 0.016f, Mood.HUNGRY, bounds, anchors, Random(0))
+        val out =
+            CatBehaviorRules.tick(
+                b, t0, 0.016f, Mood.HUNGRY, bounds, anchors, Random(0),
+                world = HabitatWorld(bowlFilled = true),
+            )
         assertThat(out.state).isEqualTo(CatState.Walking)
         assertThat(out.target).isEqualTo(anchors.bowl)
+    }
+
+    @Test
+    fun `idle cat that becomes hungry but bowl is empty does not walk to bowl`() {
+        val b = behavior(state = CatState.Idle, x = 50f, y = 50f, targetX = 50f, targetY = 50f)
+        // nextWanderAt is in the future, so without the bowl pull the cat stays idle.
+        val out =
+            CatBehaviorRules.tick(
+                b, t0, 0.016f, Mood.HUNGRY, bounds, anchors, Random(0),
+                world = HabitatWorld(bowlFilled = false),
+            )
+        assertThat(out.state).isEqualTo(CatState.Idle)
     }
 
     @Test
