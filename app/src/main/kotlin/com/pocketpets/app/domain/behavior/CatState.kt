@@ -1,4 +1,8 @@
 package com.pocketpets.app.domain.behavior
 
-/** High-level cat behaviour state. Drives sprite selection and tick semantics. */
-enum class CatState { Idle, Walking, Lying }
+/**
+ * Behavioural state of the cat. The state machine is implemented in
+ * [CatBehaviorRules.tick]. Eating and Playing are duration-bounded by
+ * [CatBehavior.stateUntil].
+ */
+enum class CatState { Idle, Walking, Lying, Eating, Playing }

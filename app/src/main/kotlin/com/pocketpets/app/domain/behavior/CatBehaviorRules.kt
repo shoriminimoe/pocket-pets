@@ -87,6 +87,13 @@ object CatBehaviorRules {
     ): CatBehavior {
         if (dtSeconds <= 0f) return b
 
+        // Duration-bounded states are implemented in a later task; for now they
+        // are no-ops so adding them to the enum doesn't fall through into the
+        // Walking branch below.
+        if (b.state == CatState.Eating || b.state == CatState.Playing) {
+            return b
+        }
+
         // Mood-driven anchor target preempts everything else.
         val moodAnchor: Position? =
             when (mood) {
