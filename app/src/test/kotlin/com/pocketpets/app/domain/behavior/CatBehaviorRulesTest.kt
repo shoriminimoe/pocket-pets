@@ -318,4 +318,45 @@ class CatBehaviorRulesTest {
             )
         assertThat(out.target).isEqualTo(toy)
     }
+
+    @Test
+    fun `walking hungry cat that arrives at filled bowl becomes Eating with stateUntil 5 seconds out`() {
+        val world = HabitatWorld(bowlFilled = true)
+        val b =
+            behavior(
+                state = CatState.Walking,
+                x = anchors.bowl.x,
+                y = anchors.bowl.y,
+                targetX = anchors.bowl.x,
+                targetY = anchors.bowl.y,
+            )
+        val out =
+            CatBehaviorRules.tick(
+                b, t0, 0.1f, Mood.HUNGRY, bounds, anchors, Random(0),
+                world = world,
+            )
+        assertThat(out.state).isEqualTo(CatState.Eating)
+        assertThat(out.stateUntil).isNotNull()
+        val deltaSec = (out.stateUntil!!.toEpochMilliseconds() - t0.toEpochMilliseconds()) / 1000L
+        assertThat(deltaSec).isEqualTo(CatBehaviorRules.EATING_DURATION_SECONDS)
+    }
+
+    @Test
+    fun `walking cat that arrives at bowl spot but bowl is empty still becomes Idle`() {
+        val world = HabitatWorld(bowlFilled = false)
+        val b =
+            behavior(
+                state = CatState.Walking,
+                x = anchors.bowl.x,
+                y = anchors.bowl.y,
+                targetX = anchors.bowl.x,
+                targetY = anchors.bowl.y,
+            )
+        val out =
+            CatBehaviorRules.tick(
+                b, t0, 0.1f, Mood.HUNGRY, bounds, anchors, Random(0),
+                world = world,
+            )
+        assertThat(out.state).isEqualTo(CatState.Idle)
+    }
 }
