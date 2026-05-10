@@ -12,6 +12,7 @@ import com.pocketpets.app.domain.behavior.CatBehavior
 import com.pocketpets.app.domain.behavior.CatBehaviorRules
 import com.pocketpets.app.domain.behavior.CatState
 import com.pocketpets.app.domain.behavior.HabitatBounds
+import com.pocketpets.app.domain.behavior.HabitatWorld
 import com.pocketpets.app.domain.behavior.Position
 import com.pocketpets.app.domain.speech.Phrase
 import com.pocketpets.app.domain.speech.SpeechBank
@@ -22,6 +23,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -36,6 +38,7 @@ data class PetUiState(
     val stage: GrowthStage = GrowthStage.BABY,
     val activePhrase: Phrase? = null,
     val behavior: CatBehavior? = null,
+    val world: HabitatWorld = HabitatWorld(),
 )
 
 class PetViewModel(
@@ -73,18 +76,22 @@ class PetViewModel(
         )
 
     private val currentPhrase = MutableStateFlow<Phrase?>(null)
+    private val _world: MutableStateFlow<HabitatWorld> = MutableStateFlow(HabitatWorld())
+    val world: StateFlow<HabitatWorld> = _world.asStateFlow()
+
     val state: StateFlow<PetUiState> =
         combine(
             repo.observeActive(),
             ticker(60_000L),
             currentPhrase,
             behaviorFlow,
-        ) { rawPet, _, phrase, behavior ->
+            _world,
+        ) { rawPet, _, phrase, behavior, worldNow ->
             val now = clock.now()
             val ticked = rawPet?.let { StatDecay.tick(it, now) }
             val mood = ticked?.let { Mood.from(it, now, zone) } ?: Mood.IDLE
             val stage = ticked?.let { GrowthStage.fromAge(it.bornAt, now) } ?: GrowthStage.BABY
-            PetUiState(ticked, mood, stage, phrase, behavior)
+            PetUiState(ticked, mood, stage, phrase, behavior, worldNow)
         }.stateIn(scope, SharingStarted.WhileSubscribed(5_000), PetUiState())
 
     init {
@@ -122,6 +129,7 @@ class PetViewModel(
                         bounds = habitatBounds,
                         anchors = habitatAnchors,
                         rng = rng,
+                        world = _world.value,
                     )
                 }
             }
