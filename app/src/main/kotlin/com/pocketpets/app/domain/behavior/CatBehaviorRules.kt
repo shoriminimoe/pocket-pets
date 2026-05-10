@@ -50,15 +50,18 @@ object CatBehaviorRules {
     }
 
     /**
-     * Returns the target the cat should walk to next given current [mood].
-     * Mood-driven destinations take priority; otherwise picks a uniform-random
-     * point inside [bounds].
+     * Returns the target the cat should walk to next given current [mood] and
+     * [world]. World-driven destinations (toy thrown, bowl filled while hungry)
+     * take priority; otherwise mood-driven destinations; otherwise a uniform-random
+     * point inside [bounds]. The default empty [world] preserves the prior
+     * behaviour (mood-anchor + random) until the world-aware paths are added.
      */
     fun pickTarget(
         mood: Mood,
         bounds: HabitatBounds,
         anchors: Anchors,
         rng: Random,
+        world: HabitatWorld = HabitatWorld(),
     ): Position =
         when (mood) {
             Mood.SLEEPY -> anchors.bed
@@ -84,6 +87,7 @@ object CatBehaviorRules {
         anchors: Anchors,
         rng: Random,
         speedDpPerSec: Float = DEFAULT_SPEED_DP_PER_SEC,
+        world: HabitatWorld = HabitatWorld(),
     ): CatBehavior {
         if (dtSeconds <= 0f) return b
 
