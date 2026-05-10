@@ -101,11 +101,18 @@ object CatBehaviorRules {
     ): CatBehavior {
         if (dtSeconds <= 0f) return b
 
-        // Duration-bounded states are implemented in a later task; for now they
-        // are no-ops so adding them to the enum doesn't fall through into the
-        // Walking branch below.
+        // Duration-bounded states stay put until stateUntil is reached, then
+        // transition back to Idle and reschedule the wander timer. Side effects
+        // (refill hunger, drop the toy) are handled by the ViewModel observing
+        // the state transition.
         if (b.state == CatState.Eating || b.state == CatState.Playing) {
-            return b
+            val until = b.stateUntil
+            if (until == null || now < until) return b
+            return b.copy(
+                state = CatState.Idle,
+                stateUntil = null,
+                nextWanderAt = nextWanderInstant(now, rng),
+            )
         }
 
         // Target priority: SLEEPY bed > thrown toy > HUNGRY+filled bowl > nothing.

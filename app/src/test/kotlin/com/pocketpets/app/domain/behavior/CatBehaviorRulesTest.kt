@@ -380,4 +380,64 @@ class CatBehaviorRulesTest {
         val deltaSec = (out.stateUntil!!.toEpochMilliseconds() - t0.toEpochMilliseconds()) / 1000L
         assertThat(deltaSec).isEqualTo(CatBehaviorRules.PLAYING_DURATION_SECONDS)
     }
+
+    @Test
+    fun `eating cat exits to Idle when stateUntil is reached`() {
+        val until = t0.plusSeconds(5)
+        val b =
+            behavior(
+                state = CatState.Eating,
+                x = anchors.bowl.x, y = anchors.bowl.y,
+                targetX = anchors.bowl.x, targetY = anchors.bowl.y,
+            ).copy(stateUntil = until)
+        val later = until.plusSeconds(1)
+        val out =
+            CatBehaviorRules.tick(
+                b, later, 0.016f, Mood.IDLE, bounds, anchors, Random(0),
+                world = HabitatWorld(bowlFilled = false),
+            )
+        assertThat(out.state).isEqualTo(CatState.Idle)
+        assertThat(out.stateUntil).isNull()
+        val nextDelta = (out.nextWanderAt.toEpochMilliseconds() - later.toEpochMilliseconds()) / 1000L
+        assertThat(nextDelta).isAtLeast(CatBehaviorRules.MIN_WANDER_SECONDS)
+        assertThat(nextDelta).isAtMost(CatBehaviorRules.MAX_WANDER_SECONDS)
+    }
+
+    @Test
+    fun `eating cat stays Eating before stateUntil`() {
+        val until = t0.plusSeconds(5)
+        val b =
+            behavior(
+                state = CatState.Eating,
+                x = anchors.bowl.x, y = anchors.bowl.y,
+                targetX = anchors.bowl.x, targetY = anchors.bowl.y,
+            ).copy(stateUntil = until)
+        val partway = t0.plusSeconds(2)
+        val out =
+            CatBehaviorRules.tick(
+                b, partway, 0.016f, Mood.IDLE, bounds, anchors, Random(0),
+                world = HabitatWorld(),
+            )
+        assertThat(out.state).isEqualTo(CatState.Eating)
+        assertThat(out.stateUntil).isEqualTo(until)
+    }
+
+    @Test
+    fun `playing cat exits to Idle when stateUntil is reached`() {
+        val until = t0.plusSeconds(10)
+        val b =
+            behavior(
+                state = CatState.Playing,
+                x = 60f, y = 70f,
+                targetX = 60f, targetY = 70f,
+            ).copy(stateUntil = until)
+        val later = until.plusSeconds(1)
+        val out =
+            CatBehaviorRules.tick(
+                b, later, 0.016f, Mood.IDLE, bounds, anchors, Random(0),
+                world = HabitatWorld(),
+            )
+        assertThat(out.state).isEqualTo(CatState.Idle)
+        assertThat(out.stateUntil).isNull()
+    }
 }
