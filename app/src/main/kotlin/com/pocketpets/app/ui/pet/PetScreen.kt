@@ -274,11 +274,9 @@ fun PetScreen(
                     modifier =
                         Modifier
                             .align(Alignment.BottomCenter)
-                            .padding(
-                                bottom = (110 + i * 6).dp,
-                                start = if (xOffset > 0) xOffset.dp else 0.dp,
-                                end = if (xOffset < 0) (-xOffset).dp else 0.dp,
-                            ).size(48.dp),
+                            .padding(bottom = (110 + i * 6).dp)
+                            .offset(x = xOffset.dp)
+                            .size(48.dp),
                 )
             }
 
