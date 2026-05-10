@@ -18,6 +18,7 @@ object CatBehaviorRules {
     const val MIN_WANDER_SECONDS = 30L
     const val MAX_WANDER_SECONDS = 60L
     const val EATING_DURATION_SECONDS = 5L
+    const val PLAYING_DURATION_SECONDS = 10L
 
     /**
      * Direction the cat would face if walking from [from] to [to]. When |dx| == |dy|
@@ -160,6 +161,17 @@ object CatBehaviorRules {
                     stateUntil =
                         Instant.fromEpochMilliseconds(
                             now.toEpochMilliseconds() + EATING_DURATION_SECONDS * 1000L,
+                        ),
+                )
+            effectiveTarget == world.toy ->
+                b.copy(
+                    state = CatState.Playing,
+                    position = effectiveTarget,
+                    target = effectiveTarget,
+                    facing = directionOf(b.position, effectiveTarget),
+                    stateUntil =
+                        Instant.fromEpochMilliseconds(
+                            now.toEpochMilliseconds() + PLAYING_DURATION_SECONDS * 1000L,
                         ),
                 )
             effectiveTarget == anchors.bed ->

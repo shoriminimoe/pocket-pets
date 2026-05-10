@@ -359,4 +359,25 @@ class CatBehaviorRulesTest {
             )
         assertThat(out.state).isEqualTo(CatState.Idle)
     }
+
+    @Test
+    fun `walking cat that arrives at toy becomes Playing with stateUntil 10 seconds out`() {
+        val toy = Position(60f, 70f)
+        val world = HabitatWorld(toy = toy)
+        val b =
+            behavior(
+                state = CatState.Walking,
+                x = toy.x, y = toy.y,
+                targetX = toy.x, targetY = toy.y,
+            )
+        val out =
+            CatBehaviorRules.tick(
+                b, t0, 0.1f, Mood.IDLE, bounds, anchors, Random(0),
+                world = world,
+            )
+        assertThat(out.state).isEqualTo(CatState.Playing)
+        assertThat(out.stateUntil).isNotNull()
+        val deltaSec = (out.stateUntil!!.toEpochMilliseconds() - t0.toEpochMilliseconds()) / 1000L
+        assertThat(deltaSec).isEqualTo(CatBehaviorRules.PLAYING_DURATION_SECONDS)
+    }
 }
