@@ -6,7 +6,11 @@ import com.pocketpets.app.domain.behavior.Position
 sealed interface DropTarget {
     data object Bowl : DropTarget
 
-    data class Poop(val index: Int) : DropTarget
+    data class Poop(
+        val index: Int,
+    ) : DropTarget
 
-    data class Floor(val position: Position) : DropTarget
+    data class Floor(
+        val position: Position,
+    ) : DropTarget
 }

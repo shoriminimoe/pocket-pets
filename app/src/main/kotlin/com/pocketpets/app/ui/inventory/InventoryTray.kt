@@ -21,13 +21,13 @@ import com.pocketpets.app.R
 
 /**
  * Bottom-of-screen tray with three layout-only slots: Food, Scoop, Toy.
- * Each slot reports its screen-relative rect (in dp) via [onSlotPositioned]
+ * Each slot reports its screen-relative rect (in dp) via [onSlotPositionChange]
  * so the parent screen can resolve a long-press start back to the picked-up
  * item without owning the gesture handler itself.
  */
 @Composable
 fun InventoryTray(
-    onSlotPositioned: (Item, leftDp: Float, topDp: Float, sizeDp: Float) -> Unit,
+    onSlotPositionChange: (Item, leftDp: Float, topDp: Float, sizeDp: Float) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Row(
@@ -39,9 +39,9 @@ fun InventoryTray(
         horizontalArrangement = Arrangement.SpaceEvenly,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        TraySlot(item = Item.Food, drawable = R.drawable.food, onSlotPositioned = onSlotPositioned)
-        TraySlot(item = Item.Scoop, drawable = R.drawable.scoop, onSlotPositioned = onSlotPositioned)
-        TraySlot(item = Item.Toy, drawable = R.drawable.toy, onSlotPositioned = onSlotPositioned)
+        TraySlot(item = Item.Food, drawable = R.drawable.food, onSlotPositionChange = onSlotPositionChange)
+        TraySlot(item = Item.Scoop, drawable = R.drawable.scoop, onSlotPositionChange = onSlotPositionChange)
+        TraySlot(item = Item.Toy, drawable = R.drawable.toy, onSlotPositionChange = onSlotPositionChange)
     }
 }
 
@@ -49,7 +49,7 @@ fun InventoryTray(
 private fun TraySlot(
     item: Item,
     drawable: Int,
-    onSlotPositioned: (Item, leftDp: Float, topDp: Float, sizeDp: Float) -> Unit,
+    onSlotPositionChange: (Item, leftDp: Float, topDp: Float, sizeDp: Float) -> Unit,
 ) {
     val density = LocalDensity.current
     Box(
@@ -59,11 +59,13 @@ private fun TraySlot(
                 .onGloballyPositioned { coords ->
                     val pos = coords.positionInRoot()
                     with(density) {
-                        onSlotPositioned(
+                        onSlotPositionChange(
                             item,
                             pos.x.toDp().value,
                             pos.y.toDp().value,
-                            coords.size.width.toDp().value,
+                            coords.size.width
+                                .toDp()
+                                .value,
                         )
                     }
                 },

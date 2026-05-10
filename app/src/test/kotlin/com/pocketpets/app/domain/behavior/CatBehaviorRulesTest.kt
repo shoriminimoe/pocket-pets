@@ -208,7 +208,13 @@ class CatBehaviorRulesTest {
         val b = behavior(state = CatState.Idle, x = 50f, y = 50f, targetX = 50f, targetY = 50f)
         val out =
             CatBehaviorRules.tick(
-                b, t0, 0.016f, Mood.HUNGRY, bounds, anchors, Random(0),
+                b,
+                t0,
+                0.016f,
+                Mood.HUNGRY,
+                bounds,
+                anchors,
+                Random(0),
                 world = HabitatWorld(bowlFilled = true),
             )
         assertThat(out.state).isEqualTo(CatState.Walking)
@@ -221,7 +227,13 @@ class CatBehaviorRulesTest {
         // nextWanderAt is in the future, so without the bowl pull the cat stays idle.
         val out =
             CatBehaviorRules.tick(
-                b, t0, 0.016f, Mood.HUNGRY, bounds, anchors, Random(0),
+                b,
+                t0,
+                0.016f,
+                Mood.HUNGRY,
+                bounds,
+                anchors,
+                Random(0),
                 world = HabitatWorld(bowlFilled = false),
             )
         assertThat(out.state).isEqualTo(CatState.Idle)
@@ -272,7 +284,13 @@ class CatBehaviorRulesTest {
         val b = behavior(state = CatState.Idle, x = 10f, y = 10f, targetX = 10f, targetY = 10f)
         val out =
             CatBehaviorRules.tick(
-                b, t0, 0.016f, Mood.IDLE, bounds, anchors, Random(0),
+                b,
+                t0,
+                0.016f,
+                Mood.IDLE,
+                bounds,
+                anchors,
+                Random(0),
                 world = world,
             )
         assertThat(out.state).isEqualTo(CatState.Walking)
@@ -286,7 +304,13 @@ class CatBehaviorRulesTest {
         val b = behavior(state = CatState.Idle, x = 10f, y = 10f, targetX = 10f, targetY = 10f)
         val out =
             CatBehaviorRules.tick(
-                b, t0, 0.016f, Mood.HUNGRY, bounds, anchors, Random(0),
+                b,
+                t0,
+                0.016f,
+                Mood.HUNGRY,
+                bounds,
+                anchors,
+                Random(0),
                 world = world,
             )
         assertThat(out.state).isEqualTo(CatState.Walking)
@@ -300,7 +324,13 @@ class CatBehaviorRulesTest {
         val b = behavior(state = CatState.Idle, x = 10f, y = 10f, targetX = 10f, targetY = 10f)
         val out =
             CatBehaviorRules.tick(
-                b, t0, 0.016f, Mood.SLEEPY, bounds, anchors, Random(0),
+                b,
+                t0,
+                0.016f,
+                Mood.SLEEPY,
+                bounds,
+                anchors,
+                Random(0),
                 world = world,
             )
         assertThat(out.target).isEqualTo(anchors.bed)
@@ -313,7 +343,13 @@ class CatBehaviorRulesTest {
         val b = behavior(state = CatState.Walking, x = 50f, y = 50f, targetX = 100f, targetY = 50f)
         val out =
             CatBehaviorRules.tick(
-                b, t0, 0.016f, Mood.IDLE, bounds, anchors, Random(0),
+                b,
+                t0,
+                0.016f,
+                Mood.IDLE,
+                bounds,
+                anchors,
+                Random(0),
                 world = world,
             )
         assertThat(out.target).isEqualTo(toy)
@@ -332,7 +368,13 @@ class CatBehaviorRulesTest {
             )
         val out =
             CatBehaviorRules.tick(
-                b, t0, 0.1f, Mood.HUNGRY, bounds, anchors, Random(0),
+                b,
+                t0,
+                0.1f,
+                Mood.HUNGRY,
+                bounds,
+                anchors,
+                Random(0),
                 world = world,
             )
         assertThat(out.state).isEqualTo(CatState.Eating)
@@ -354,7 +396,13 @@ class CatBehaviorRulesTest {
             )
         val out =
             CatBehaviorRules.tick(
-                b, t0, 0.1f, Mood.HUNGRY, bounds, anchors, Random(0),
+                b,
+                t0,
+                0.1f,
+                Mood.HUNGRY,
+                bounds,
+                anchors,
+                Random(0),
                 world = world,
             )
         assertThat(out.state).isEqualTo(CatState.Idle)
@@ -367,12 +415,20 @@ class CatBehaviorRulesTest {
         val b =
             behavior(
                 state = CatState.Walking,
-                x = toy.x, y = toy.y,
-                targetX = toy.x, targetY = toy.y,
+                x = toy.x,
+                y = toy.y,
+                targetX = toy.x,
+                targetY = toy.y,
             )
         val out =
             CatBehaviorRules.tick(
-                b, t0, 0.1f, Mood.IDLE, bounds, anchors, Random(0),
+                b,
+                t0,
+                0.1f,
+                Mood.IDLE,
+                bounds,
+                anchors,
+                Random(0),
                 world = world,
             )
         assertThat(out.state).isEqualTo(CatState.Playing)
@@ -387,13 +443,21 @@ class CatBehaviorRulesTest {
         val b =
             behavior(
                 state = CatState.Eating,
-                x = anchors.bowl.x, y = anchors.bowl.y,
-                targetX = anchors.bowl.x, targetY = anchors.bowl.y,
+                x = anchors.bowl.x,
+                y = anchors.bowl.y,
+                targetX = anchors.bowl.x,
+                targetY = anchors.bowl.y,
             ).copy(stateUntil = until)
         val later = until.plusSeconds(1)
         val out =
             CatBehaviorRules.tick(
-                b, later, 0.016f, Mood.IDLE, bounds, anchors, Random(0),
+                b,
+                later,
+                0.016f,
+                Mood.IDLE,
+                bounds,
+                anchors,
+                Random(0),
                 world = HabitatWorld(bowlFilled = false),
             )
         assertThat(out.state).isEqualTo(CatState.Idle)
@@ -409,13 +473,21 @@ class CatBehaviorRulesTest {
         val b =
             behavior(
                 state = CatState.Eating,
-                x = anchors.bowl.x, y = anchors.bowl.y,
-                targetX = anchors.bowl.x, targetY = anchors.bowl.y,
+                x = anchors.bowl.x,
+                y = anchors.bowl.y,
+                targetX = anchors.bowl.x,
+                targetY = anchors.bowl.y,
             ).copy(stateUntil = until)
         val partway = t0.plusSeconds(2)
         val out =
             CatBehaviorRules.tick(
-                b, partway, 0.016f, Mood.IDLE, bounds, anchors, Random(0),
+                b,
+                partway,
+                0.016f,
+                Mood.IDLE,
+                bounds,
+                anchors,
+                Random(0),
                 world = HabitatWorld(),
             )
         assertThat(out.state).isEqualTo(CatState.Eating)
@@ -428,13 +500,21 @@ class CatBehaviorRulesTest {
         val b =
             behavior(
                 state = CatState.Playing,
-                x = 60f, y = 70f,
-                targetX = 60f, targetY = 70f,
+                x = 60f,
+                y = 70f,
+                targetX = 60f,
+                targetY = 70f,
             ).copy(stateUntil = until)
         val later = until.plusSeconds(1)
         val out =
             CatBehaviorRules.tick(
-                b, later, 0.016f, Mood.IDLE, bounds, anchors, Random(0),
+                b,
+                later,
+                0.016f,
+                Mood.IDLE,
+                bounds,
+                anchors,
+                Random(0),
                 world = HabitatWorld(),
             )
         assertThat(out.state).isEqualTo(CatState.Idle)

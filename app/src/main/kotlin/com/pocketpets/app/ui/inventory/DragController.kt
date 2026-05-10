@@ -6,7 +6,10 @@ import androidx.compose.runtime.setValue
 import com.pocketpets.app.domain.behavior.Position
 
 /** Snapshot of an in-flight drag. */
-data class DragInFlight(val item: Item, val position: Position)
+data class DragInFlight(
+    val item: Item,
+    val position: Position,
+)
 
 /**
  * Compose state holder for an in-flight drag-and-drop. Created once per screen
