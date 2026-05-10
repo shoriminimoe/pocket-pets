@@ -38,6 +38,8 @@ object CatAnimations {
             CatState.Walking -> walk
             CatState.Idle -> sit
             CatState.Lying -> lay
+            CatState.Eating -> sit
+            CatState.Playing -> walk
         }
 
     /**
@@ -47,14 +49,15 @@ object CatAnimations {
      * Walk frames live on rows 0..3 (S/N/W/E). Sit and lay are single-cell poses on
      * rows 4 and 5 respectively, with no directional siblings. Forwarding a non-SOUTH
      * facing on those poses would have AnimatedSprite read row 4+offset / 5+offset
-     * which is out of bounds for the 6-row sheet — so we coerce to SOUTH.
+     * which is out of bounds for the 6-row sheet — so we coerce to SOUTH. Eating
+     * reuses sit (also SOUTH-only); Playing reuses walk (directional).
      */
     fun facingFor(
         state: CatState,
         behaviorFacing: Direction,
     ): Direction =
         when (state) {
-            CatState.Walking -> behaviorFacing
-            CatState.Idle, CatState.Lying -> Direction.SOUTH
+            CatState.Walking, CatState.Playing -> behaviorFacing
+            CatState.Idle, CatState.Lying, CatState.Eating -> Direction.SOUTH
         }
 }

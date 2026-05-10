@@ -12,6 +12,7 @@ import com.pocketpets.app.domain.behavior.CatBehavior
 import com.pocketpets.app.domain.behavior.CatBehaviorRules
 import com.pocketpets.app.domain.behavior.CatState
 import com.pocketpets.app.domain.behavior.HabitatBounds
+import com.pocketpets.app.domain.behavior.HabitatWorld
 import com.pocketpets.app.domain.behavior.Position
 import com.pocketpets.app.domain.speech.Phrase
 import com.pocketpets.app.domain.speech.SpeechBank
@@ -22,6 +23,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -36,6 +38,7 @@ data class PetUiState(
     val stage: GrowthStage = GrowthStage.BABY,
     val activePhrase: Phrase? = null,
     val behavior: CatBehavior? = null,
+    val world: HabitatWorld = HabitatWorld(),
 )
 
 class PetViewModel(
@@ -61,7 +64,14 @@ class PetViewModel(
 
     @Volatile private var currentMood: Mood = Mood.IDLE
 
-    private val behaviorFlow: MutableStateFlow<CatBehavior> =
+    /**
+     * The cat's behaviour state, advanced by the frame ticker via
+     * [CatBehaviorRules.tick]. Marked `internal` so unit tests can simulate
+     * specific state transitions without driving the wall-clock-dependent
+     * frame ticker. Not part of the public ViewModel API — UI consumers read
+     * [state] (which exposes a snapshot via [PetUiState.behavior]).
+     */
+    internal val behaviorFlow: MutableStateFlow<CatBehavior> =
         MutableStateFlow(
             CatBehavior(
                 state = CatState.Idle,
@@ -73,18 +83,22 @@ class PetViewModel(
         )
 
     private val currentPhrase = MutableStateFlow<Phrase?>(null)
+    private val _world: MutableStateFlow<HabitatWorld> = MutableStateFlow(HabitatWorld())
+    val world: StateFlow<HabitatWorld> = _world.asStateFlow()
+
     val state: StateFlow<PetUiState> =
         combine(
             repo.observeActive(),
             ticker(60_000L),
             currentPhrase,
             behaviorFlow,
-        ) { rawPet, _, phrase, behavior ->
+            _world,
+        ) { rawPet, _, phrase, behavior, worldNow ->
             val now = clock.now()
             val ticked = rawPet?.let { StatDecay.tick(it, now) }
             val mood = ticked?.let { Mood.from(it, now, zone) } ?: Mood.IDLE
             val stage = ticked?.let { GrowthStage.fromAge(it.bornAt, now) } ?: GrowthStage.BABY
-            PetUiState(ticked, mood, stage, phrase, behavior)
+            PetUiState(ticked, mood, stage, phrase, behavior, worldNow)
         }.stateIn(scope, SharingStarted.WhileSubscribed(5_000), PetUiState())
 
     init {
@@ -122,8 +136,34 @@ class PetViewModel(
                         bounds = habitatBounds,
                         anchors = habitatAnchors,
                         rng = rng,
+                        world = _world.value,
                     )
                 }
+            }
+        }
+        // Side-effect dispatch on state transitions. Observes behaviorFlow and
+        // fires repo calls / world mutations exactly once per transition. Stays
+        // out of the frame ticker so tests can drive transitions directly via
+        // behaviorFlow.value = newBehavior.
+        scope.launch {
+            var prev: CatBehavior? = null
+            behaviorFlow.collect { current ->
+                val before = prev
+                if (before != null && before.state != current.state) {
+                    when {
+                        current.state == CatState.Eating -> {
+                            _world.value = _world.value.copy(bowlFilled = false)
+                            withActive { repo.feed(it) }
+                        }
+                        current.state == CatState.Playing -> {
+                            withActive { repo.pet(it) }
+                        }
+                        before.state == CatState.Playing && current.state == CatState.Idle -> {
+                            _world.value = _world.value.copy(toy = null)
+                        }
+                    }
+                }
+                prev = current
             }
         }
     }
@@ -153,6 +193,20 @@ class PetViewModel(
     fun dismissPhrase() {
         currentPhrase.value = null
     }
+
+    fun onFoodDroppedOnBowl() {
+        _world.value = _world.value.copy(bowlFilled = true)
+    }
+
+    fun onScoopDroppedOnPoop(
+        @Suppress("UNUSED_PARAMETER") poopIndex: Int,
+    ) = withActive { repo.clean(it) }
+
+    fun onToyDropped(position: Position) {
+        _world.value = _world.value.copy(toy = position)
+    }
+
+    fun onCatHeld() = withActive { repo.pet(it) }
 
     private fun withActive(block: suspend (Long) -> Unit) {
         val id = state.value.pet?.id ?: return

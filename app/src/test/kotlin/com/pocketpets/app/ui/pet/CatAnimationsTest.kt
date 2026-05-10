@@ -60,4 +60,18 @@ class CatAnimationsTest {
             }
         }
     }
+
+    @Test
+    fun `eating reuses sit and playing reuses walk`() {
+        assertThat(CatAnimations.forState(CatState.Eating)).isEqualTo(CatAnimations.sit)
+        assertThat(CatAnimations.forState(CatState.Playing)).isEqualTo(CatAnimations.walk)
+    }
+
+    @Test
+    fun `eating coerces facing to SOUTH and playing preserves it`() {
+        for (facing in Direction.values()) {
+            assertThat(CatAnimations.facingFor(CatState.Eating, facing)).isEqualTo(Direction.SOUTH)
+            assertThat(CatAnimations.facingFor(CatState.Playing, facing)).isEqualTo(facing)
+        }
+    }
 }

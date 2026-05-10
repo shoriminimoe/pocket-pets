@@ -17,6 +17,8 @@ object CatBehaviorRules {
     const val ARRIVAL_EPSILON_DP = 2f
     const val MIN_WANDER_SECONDS = 30L
     const val MAX_WANDER_SECONDS = 60L
+    const val EATING_DURATION_SECONDS = 5L
+    const val PLAYING_DURATION_SECONDS = 10L
 
     /**
      * Direction the cat would face if walking from [from] to [to]. When |dx| == |dy|
@@ -50,19 +52,30 @@ object CatBehaviorRules {
     }
 
     /**
-     * Returns the target the cat should walk to next given current [mood].
-     * Mood-driven destinations take priority; otherwise picks a uniform-random
-     * point inside [bounds].
+     * Returns the target the cat should walk to next given current [mood] and
+     * [world]. World-driven destinations (toy thrown, bowl filled while hungry)
+     * take priority; otherwise mood-driven destinations; otherwise a uniform-random
+     * point inside [bounds]. The default empty [world] preserves the prior
+     * behaviour (mood-anchor + random) until the world-aware paths are added.
      */
     fun pickTarget(
         mood: Mood,
         bounds: HabitatBounds,
         anchors: Anchors,
         rng: Random,
+        world: HabitatWorld = HabitatWorld(),
     ): Position =
         when (mood) {
             Mood.SLEEPY -> anchors.bed
-            Mood.HUNGRY -> anchors.bowl
+            Mood.HUNGRY ->
+                if (world.bowlFilled) {
+                    anchors.bowl
+                } else {
+                    Position(
+                        x = rng.nextFloatInRange(bounds.minX, bounds.maxX),
+                        y = rng.nextFloatInRange(bounds.minY, bounds.maxY),
+                    )
+                }
             else ->
                 Position(
                     x = rng.nextFloatInRange(bounds.minX, bounds.maxX),
@@ -84,41 +97,59 @@ object CatBehaviorRules {
         anchors: Anchors,
         rng: Random,
         speedDpPerSec: Float = DEFAULT_SPEED_DP_PER_SEC,
+        world: HabitatWorld = HabitatWorld(),
     ): CatBehavior {
         if (dtSeconds <= 0f) return b
 
-        // Mood-driven anchor target preempts everything else.
-        val moodAnchor: Position? =
-            when (mood) {
-                Mood.SLEEPY -> anchors.bed
-                Mood.HUNGRY -> anchors.bowl
+        // Duration-bounded states stay put until stateUntil is reached, then
+        // transition back to Idle and reschedule the wander timer. Side effects
+        // (refill hunger, drop the toy) are handled by the ViewModel observing
+        // the state transition.
+        if (b.state == CatState.Eating || b.state == CatState.Playing) {
+            val until = b.stateUntil
+            if (until == null || now < until) return b
+            return b.copy(
+                state = CatState.Idle,
+                stateUntil = null,
+                nextWanderAt = nextWanderInstant(now, rng),
+            )
+        }
+
+        // Target priority: SLEEPY bed > thrown toy > HUNGRY+filled bowl > nothing.
+        // SLEEPY beats toy because going to sleep is a stronger drive than play;
+        // toy beats a hungry cat so a thrown toy redirects mid-walk to the bowl.
+        val targetOverride: Position? =
+            when {
+                mood == Mood.SLEEPY -> anchors.bed
+                world.toy != null -> world.toy
+                mood == Mood.HUNGRY && world.bowlFilled -> anchors.bowl
                 else -> null
             }
 
         // Lying cat with no reason to move stays put.
         if (b.state == CatState.Lying) {
-            if (moodAnchor != null && moodAnchor == b.position) return b
+            if (targetOverride != null && targetOverride == b.position) return b
             if (mood == Mood.SLEEPY) return b
             // Wake up and walk somewhere.
-            val target = moodAnchor ?: pickTarget(mood, bounds, anchors, rng)
+            val target = targetOverride ?: pickTarget(mood, bounds, anchors, rng, world)
             return walkingToward(b, target)
         }
 
         // Idle cat: start moving if mood demands it, or the wander timer fired.
         if (b.state == CatState.Idle) {
             return when {
-                moodAnchor != null && moodAnchor != b.position -> walkingToward(b, moodAnchor)
+                targetOverride != null && targetOverride != b.position -> walkingToward(b, targetOverride)
                 now >= b.nextWanderAt ->
                     walkingToward(
                         b,
-                        pickTarget(mood, bounds, anchors, rng),
+                        pickTarget(mood, bounds, anchors, rng, world),
                     )
                 else -> b
             }
         }
 
-        // Walking cat. Possibly retarget to the mood anchor; then advance.
-        val effectiveTarget = moodAnchor ?: b.target
+        // Walking cat. Possibly retarget to the override; then advance.
+        val effectiveTarget = targetOverride ?: b.target
         val advanced = advance(b.position, effectiveTarget, speedDpPerSec, dtSeconds)
         val arrived = isArrived(advanced, effectiveTarget)
         return when {
@@ -127,6 +158,28 @@ object CatBehaviorRules {
                     position = advanced,
                     target = effectiveTarget,
                     facing = directionOf(b.position, effectiveTarget),
+                )
+            effectiveTarget == anchors.bowl && world.bowlFilled ->
+                b.copy(
+                    state = CatState.Eating,
+                    position = effectiveTarget,
+                    target = effectiveTarget,
+                    facing = directionOf(b.position, effectiveTarget),
+                    stateUntil =
+                        Instant.fromEpochMilliseconds(
+                            now.toEpochMilliseconds() + EATING_DURATION_SECONDS * 1000L,
+                        ),
+                )
+            effectiveTarget == world.toy ->
+                b.copy(
+                    state = CatState.Playing,
+                    position = effectiveTarget,
+                    target = effectiveTarget,
+                    facing = directionOf(b.position, effectiveTarget),
+                    stateUntil =
+                        Instant.fromEpochMilliseconds(
+                            now.toEpochMilliseconds() + PLAYING_DURATION_SECONDS * 1000L,
+                        ),
                 )
             effectiveTarget == anchors.bed ->
                 b.copy(
