@@ -25,7 +25,7 @@ The unit-test suite uses Robolectric (`sdk=33` pinned via `app/src/test/resource
 
 Two scripts produce art under `app/src/main/res/drawable-nodpi/`. Both are PEP-723 inline-deps Python scripts runnable directly via `uv` — no manual venv needed:
 
-- **`tools/fetch_cat_sprites.py`** — source-of-truth for `cat.png`. Fetches the upstream CC0 sprite from OpenGameArt, verifies the pinned SHA256, and **repacks** into a 64×128 sheet with sit (row 0) + lay (row 1) cells. Don't hand-edit `cat.png`; re-run this script.
+- **`tools/fetch_cat_sprites.py`** — verifier for `cat.png`. The cat sheet is an in-tree, original AI-generated 256×384 RGBA PNG laid out as a 4-col × 6-row LPC-style grid (walk S/N/W/E rows 0-3, sit row 4 col 0, lay row 5 col 0). The script asserts dimensions, pixel mode and SHA256 match pinned values; on mismatch it prints the new digest and exits non-zero. To replace the sheet, drop the new PNG at the canonical path, run the script, and update `PINNED_SHA` to the printed digest in the same commit.
 - **`tools/generate_sprites.py`** — deterministic Pillow procedural script for **decor only** (`poop.png`, `room_bg.png`, `bowl.png`). Cat code was removed when the real cat asset shipped.
 
 ```bash
