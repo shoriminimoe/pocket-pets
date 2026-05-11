@@ -22,7 +22,7 @@ android {
         minSdk = 24
         targetSdk = 36
         versionCode = (project.findProperty("releaseVersionCode") as String?)?.toInt() ?: 1
-        versionName = "0.3.0" // x-release-please-version
+        versionName = "0.4.0" // x-release-please-version
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
