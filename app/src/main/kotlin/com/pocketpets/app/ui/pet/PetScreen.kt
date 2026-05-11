@@ -265,8 +265,7 @@ fun PetScreen(
 
             // Inventory tray with drag-gesture handler
             var trayRootOffsetPx by remember { mutableStateOf(Offset.Zero) }
-            
-                    Box(
+            Box(
                 modifier =
                     Modifier
                         .align(Alignment.BottomCenter)
@@ -274,7 +273,7 @@ fun PetScreen(
                         .onGloballyPositioned { coords ->
                             trayRootOffsetPx = coords.positionInRoot()
                         }.pointerInput(pet.id) {
-                            awaitEachGesture  {
+                            awaitEachGesture {
                                 val down = awaitFirstDown(requireUnconsumed = false)
                                 val startDp =
                                     with(density) {
