@@ -97,6 +97,7 @@ fun PetScreen(
     var habitatBoundsState by remember { mutableStateOf<HabitatBounds?>(null) }
     var screenWidthDp by remember { mutableFloatStateOf(0f) }
     var screenHeightDp by remember { mutableFloatStateOf(0f) }
+    var topReservedDp by remember { mutableFloatStateOf(0f) }
     val dragController = remember { DragController() }
     val slotRects = remember { mutableStateMapOf<Item, DpRect>() }
 
@@ -105,13 +106,15 @@ fun PetScreen(
     // must reserve that much room on the right and bottom — otherwise the
     // sprite's box renders past the play area when the cat sits at maxX/maxY.
     val spriteDp = stageSpriteSize(state.stage).value
-    LaunchedEffect(screenWidthDp, screenHeightDp, spriteDp) {
-        if (screenWidthDp <= 0f || screenHeightDp <= 0f) return@LaunchedEffect
+    LaunchedEffect(screenWidthDp, screenHeightDp, topReservedDp, spriteDp) {
+        if (screenWidthDp <= 0f || screenHeightDp <= 0f || topReservedDp <= 0f) {
+            return@LaunchedEffect
+        }
         val habitat =
             computeHabitat(
                 widthDp = screenWidthDp,
                 heightDp = screenHeightDp,
-                topReservedDp = screenHeightDp * 0.40f,
+                topReservedDp = topReservedDp,
                 bottomReservedDp = screenHeightDp * 0.15f,
                 spriteDp = spriteDp,
             )
@@ -138,39 +141,48 @@ fun PetScreen(
             contentScale = ContentScale.FillBounds,
         )
 
-        // Top bar
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(8.dp),
-            verticalAlignment = Alignment.CenterVertically,
+        // Top overlays: top bar + stat chips. Grouped into a single Column so
+        // onSizeChanged reports the combined height we reserve at the top of the
+        // play area.
+        Column(
+            modifier =
+                Modifier
+                    .align(Alignment.TopStart)
+                    .fillMaxWidth()
+                    .onSizeChanged { sizePx ->
+                        with(density) {
+                            topReservedDp = sizePx.height.toDp().value
+                        }
+                    },
         ) {
-            IconButton(onClick = onOpenSelector) {
-                Icon(Icons.Default.Menu, contentDescription = "Switch pet")
-            }
-            Spacer(Modifier.width(8.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(pet?.name ?: "—")
-                if (pet != null) {
-                    Text(stageLabel(state.stage), color = Color(0xFF555555))
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                IconButton(onClick = onOpenSelector) {
+                    Icon(Icons.Default.Menu, contentDescription = "Switch pet")
+                }
+                Spacer(Modifier.width(8.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(pet?.name ?: "—")
+                    if (pet != null) {
+                        Text(stageLabel(state.stage), color = Color(0xFF555555))
+                    }
+                }
+                IconButton(onClick = onOpenSettings) {
+                    Icon(Icons.Default.Settings, contentDescription = "Settings")
                 }
             }
-            IconButton(onClick = onOpenSettings) {
-                Icon(Icons.Default.Settings, contentDescription = "Settings")
-            }
-        }
-
-        // Stat chips just under the top bar
-        if (pet != null) {
-            Row(
-                modifier =
-                    Modifier
-                        .padding(top = 60.dp, start = 8.dp, end = 8.dp)
-                        .fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-            ) {
-                StatChip("🍗", pet.stats.hunger, Color(0xFFE6843D))
-                StatChip("🛁", pet.stats.cleanliness, Color(0xFF7AB7E8))
-                StatChip("💗", pet.stats.happiness, Color(0xFFE86A8D))
-                StatChip("⚡", pet.stats.energy, Color(0xFFE8C13D))
+            if (pet != null) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(start = 8.dp, end = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                ) {
+                    StatChip("🍗", pet.stats.hunger, Color(0xFFE6843D))
+                    StatChip("🛁", pet.stats.cleanliness, Color(0xFF7AB7E8))
+                    StatChip("💗", pet.stats.happiness, Color(0xFFE86A8D))
+                    StatChip("⚡", pet.stats.energy, Color(0xFFE8C13D))
+                }
             }
         }
 
@@ -272,7 +284,8 @@ fun PetScreen(
 
             // Inventory tray with drag-gesture handler
             var trayRootOffsetPx by remember { mutableStateOf(Offset.Zero) }
-            Box(
+            
+                    Box(
                 modifier =
                     Modifier
                         .align(Alignment.BottomCenter)
@@ -280,7 +293,7 @@ fun PetScreen(
                         .onGloballyPositioned { coords ->
                             trayRootOffsetPx = coords.positionInRoot()
                         }.pointerInput(pet.id) {
-                            awaitEachGesture {
+                            awaitEachGesture  {
                                 val down = awaitFirstDown(requireUnconsumed = false)
                                 val startDp =
                                     with(density) {
@@ -317,13 +330,13 @@ fun PetScreen(
 
                                 val ended = dragController.end()
                                 if (!lifted || ended == null) return@awaitEachGesture
-                                if (screenWidthDp <= 0f || screenHeightDp <= 0f) {
+                                if (screenWidthDp <= 0f || screenHeightDp <= 0f || topReservedDp <= 0f) {
                                     return@awaitEachGesture
                                 }
                                 val playAreaRect =
                                     DpRect(
                                         left = 0f,
-                                        top = screenHeightDp * 0.40f,
+                                        top = topReservedDp,
                                         right = screenWidthDp,
                                         bottom = screenHeightDp * 0.85f,
                                     )
