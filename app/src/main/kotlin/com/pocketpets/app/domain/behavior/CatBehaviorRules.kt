@@ -98,6 +98,45 @@ object CatBehaviorRules {
         rng: Random,
         speedDpPerSec: Float = DEFAULT_SPEED_DP_PER_SEC,
         world: HabitatWorld = HabitatWorld(),
+    ): CatBehavior =
+        tickInternal(
+            b = snapIntoBounds(b, bounds),
+            now = now,
+            dtSeconds = dtSeconds,
+            mood = mood,
+            bounds = bounds,
+            anchors = anchors,
+            rng = rng,
+            speedDpPerSec = speedDpPerSec,
+            world = world,
+        )
+
+    /**
+     * Snap [b]'s position into [bounds]. Bounds can shrink between ticks
+     * (growth-stage bumps enlarge the sprite, contracting the playable
+     * rectangle) and the ViewModel's initial position may sit above the floor
+     * before the layout pass delivers real bounds. Without this, [advance]
+     * lerps from out-of-bounds → in-bounds and renders the sprite past the
+     * play area for multiple frames.
+     */
+    private fun snapIntoBounds(
+        b: CatBehavior,
+        bounds: HabitatBounds,
+    ): CatBehavior {
+        val snapped = bounds.clamp(b.position)
+        return if (snapped == b.position) b else b.copy(position = snapped)
+    }
+
+    private fun tickInternal(
+        b: CatBehavior,
+        now: Instant,
+        dtSeconds: Float,
+        mood: Mood,
+        bounds: HabitatBounds,
+        anchors: Anchors,
+        rng: Random,
+        speedDpPerSec: Float,
+        world: HabitatWorld,
     ): CatBehavior {
         if (dtSeconds <= 0f) return b
 
