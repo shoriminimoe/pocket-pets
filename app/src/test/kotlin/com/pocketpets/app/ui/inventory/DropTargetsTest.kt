@@ -1,12 +1,11 @@
 package com.pocketpets.app.ui.inventory
 
 import com.google.common.truth.Truth.assertThat
-import com.pocketpets.app.domain.behavior.HabitatBounds
 import com.pocketpets.app.domain.behavior.Position
 import org.junit.Test
 
 class DropTargetsTest {
-    private val bounds = HabitatBounds(0f, 0f, 200f, 200f)
+    private val playAreaRect = DpRect(0f, 0f, 200f, 200f)
     private val bowlRect = DpRect(20f, 160f, 84f, 192f)
     private val poopRects =
         listOf(
@@ -19,7 +18,7 @@ class DropTargetsTest {
         item: Item,
         x: Float,
         y: Float,
-    ) = dropTargetAt(Position(x, y), item, bounds, bowlRect, poopRects, catRect)
+    ) = dropTargetAt(Position(x, y), item, playAreaRect, bowlRect, poopRects, catRect)
 
     @Test
     fun `food on the bowl resolves to Bowl`() {
@@ -55,13 +54,13 @@ class DropTargetsTest {
     }
 
     @Test
-    fun `toy inside bounds and not on bowl resolves to Floor at the drop position`() {
+    fun `toy inside play area and not on bowl resolves to Floor at the drop position`() {
         val out = resolve(Item.Toy, 100f, 50f)
         assertThat(out).isEqualTo(DropTarget.Floor(Position(100f, 50f)))
     }
 
     @Test
-    fun `toy outside bounds resolves to null`() {
+    fun `toy outside play area resolves to null`() {
         assertThat(resolve(Item.Toy, -10f, 50f)).isNull()
         assertThat(resolve(Item.Toy, 1000f, 50f)).isNull()
         assertThat(resolve(Item.Toy, 50f, -10f)).isNull()
@@ -95,5 +94,17 @@ class DropTargetsTest {
     @Test
     fun `brush on the bowl resolves to null (brush only grooms the cat)`() {
         assertThat(resolve(Item.Brush, bowlRect.left + 10f, bowlRect.top + 10f)).isNull()
+    }
+
+    @Test
+    fun `toy dropped near play-area bottom (where cat top-left could not sit) still resolves to Floor`() {
+        // The pre-change implementation used HabitatBounds for the toy target, so a drop
+        // below `bounds.maxY` (the cat-movable maxY = playArea.bottom - spriteHeight) was
+        // rejected. With `playAreaRect`, the drop is accepted because the toy itself is
+        // small and the visible floor extends to playAreaRect.bottom.
+        val (cx, _) = playAreaRect.center()
+        val nearBottom = Position(cx, playAreaRect.bottom - 1f)
+        val out = dropTargetAt(nearBottom, Item.Toy, playAreaRect, bowlRect, poopRects, catRect)
+        assertThat(out).isEqualTo(DropTarget.Floor(nearBottom))
     }
 }

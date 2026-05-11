@@ -317,7 +317,16 @@ fun PetScreen(
 
                                 val ended = dragController.end()
                                 if (!lifted || ended == null) return@awaitEachGesture
-                                val bounds = habitatBoundsState ?: return@awaitEachGesture
+                                if (screenWidthDp <= 0f || screenHeightDp <= 0f) {
+                                    return@awaitEachGesture
+                                }
+                                val playAreaRect =
+                                    DpRect(
+                                        left = 0f,
+                                        top = screenHeightDp * 0.40f,
+                                        right = screenWidthDp,
+                                        bottom = screenHeightDp * 0.85f,
+                                    )
                                 val poopRects =
                                     (0 until pet.poopCount).map { i ->
                                         poopRectFor(i, poopOffsets, screenWidthDp, screenHeightDp)
@@ -346,7 +355,7 @@ fun PetScreen(
                                     dropTargetAt(
                                         position = ended.position,
                                         item = ended.item,
-                                        bounds = bounds,
+                                        playAreaRect = playAreaRect,
                                         bowlRect = bowlRect,
                                         poopRects = poopRects,
                                         catRect = catRect,
