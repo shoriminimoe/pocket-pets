@@ -13,4 +13,6 @@ sealed interface DropTarget {
     data class Floor(
         val position: Position,
     ) : DropTarget
+
+    data object Cat : DropTarget
 }

@@ -10,6 +10,7 @@ import com.pocketpets.app.domain.behavior.Position
  *  - [Item.Food]: the bowl rect → [DropTarget.Bowl]; otherwise null.
  *  - [Item.Scoop]: the first poop rect that contains [position] → [DropTarget.Poop]; otherwise null.
  *  - [Item.Toy]: any point inside [bounds] → [DropTarget.Floor]; otherwise null.
+ *  - [Item.Brush]: the cat sprite rect → [DropTarget.Cat]; otherwise null.
  */
 fun dropTargetAt(
     position: Position,
@@ -17,6 +18,7 @@ fun dropTargetAt(
     bounds: HabitatBounds,
     bowlRect: DpRect,
     poopRects: List<DpRect>,
+    catRect: DpRect,
 ): DropTarget? =
     when (item) {
         Item.Food -> if (bowlRect.contains(position)) DropTarget.Bowl else null
@@ -32,4 +34,5 @@ fun dropTargetAt(
             } else {
                 null
             }
+        Item.Brush -> if (catRect.contains(position)) DropTarget.Cat else null
     }

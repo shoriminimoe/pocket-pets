@@ -13,12 +13,13 @@ class DropTargetsTest {
             DpRect(80f, 100f, 128f, 148f),
             DpRect(120f, 100f, 168f, 148f),
         )
+    private val catRect = DpRect(60f, 60f, 140f, 140f)
 
     private fun resolve(
         item: Item,
         x: Float,
         y: Float,
-    ) = dropTargetAt(Position(x, y), item, bounds, bowlRect, poopRects)
+    ) = dropTargetAt(Position(x, y), item, bounds, bowlRect, poopRects, catRect)
 
     @Test
     fun `food on the bowl resolves to Bowl`() {
@@ -78,5 +79,21 @@ class DropTargetsTest {
     fun `toy on the bowl resolves to Floor at the bowl coordinates (toy doesn't claim bowl)`() {
         val out = resolve(Item.Toy, bowlRect.left + 10f, bowlRect.top + 10f)
         assertThat(out).isEqualTo(DropTarget.Floor(Position(bowlRect.left + 10f, bowlRect.top + 10f)))
+    }
+
+    @Test
+    fun `brush on the cat resolves to Cat`() {
+        val (cx, cy) = catRect.center()
+        assertThat(resolve(Item.Brush, cx, cy)).isEqualTo(DropTarget.Cat)
+    }
+
+    @Test
+    fun `brush off the cat resolves to null`() {
+        assertThat(resolve(Item.Brush, 10f, 10f)).isNull()
+    }
+
+    @Test
+    fun `brush on the bowl resolves to null (brush only grooms the cat)`() {
+        assertThat(resolve(Item.Brush, bowlRect.left + 10f, bowlRect.top + 10f)).isNull()
     }
 }
