@@ -87,6 +87,50 @@ class PetRepositoryTest {
             assertThat(after6).isEqualTo(after5)
         }
 
+    @Test fun `groom raises cleanliness by 25 and happiness by 2`() =
+        runTest {
+            val id = repo.adopt("Whiskers", Species.CAT)
+            val dao = db.petDao()
+            dao.update(dao.getById(id)!!.copy(cleanliness = 40f, happiness = 40f))
+            repo.groom(id)
+            val after = repo.getById(id)!!.stats
+            assertThat(after.cleanliness).isWithin(0.01f).of(65f)
+            assertThat(after.happiness).isWithin(0.01f).of(42f)
+        }
+
+    @Test fun `groom clamps cleanliness at 100`() =
+        runTest {
+            val id = repo.adopt("Whiskers", Species.CAT)
+            val dao = db.petDao()
+            dao.update(dao.getById(id)!!.copy(cleanliness = 90f))
+            repo.groom(id)
+            assertThat(repo.getById(id)!!.stats.cleanliness).isEqualTo(100f)
+        }
+
+    @Test fun `groom caps at 3 successful invocations per 10-minute window`() =
+        runTest {
+            val id = repo.adopt("Whiskers", Species.CAT)
+            val dao = db.petDao()
+            dao.update(dao.getById(id)!!.copy(cleanliness = 0f))
+            repeat(3) { repo.groom(id) }
+            val after3 = repo.getById(id)!!.stats.cleanliness
+            repo.groom(id)
+            val after4 = repo.getById(id)!!.stats.cleanliness
+            assertThat(after4).isEqualTo(after3)
+        }
+
+    @Test fun `groom window slides so it allows new grooms after 10 minutes`() =
+        runTest {
+            val id = repo.adopt("Whiskers", Species.CAT)
+            val dao = db.petDao()
+            dao.update(dao.getById(id)!!.copy(cleanliness = 0f))
+            repeat(3) { repo.groom(id) }
+            clock.advanceBy(11L * 60 * 1000)
+            dao.update(dao.getById(id)!!.copy(cleanliness = 0f))
+            repo.groom(id)
+            assertThat(repo.getById(id)!!.stats.cleanliness).isWithin(0.01f).of(25f)
+        }
+
     @Test fun `setActive flips active flag exclusively`() =
         runTest {
             val a = repo.adopt("A", Species.CAT)

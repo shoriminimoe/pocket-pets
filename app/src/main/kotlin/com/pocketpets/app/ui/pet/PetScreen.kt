@@ -342,6 +342,19 @@ fun PetScreen(
                                             right = 24f + 64f,
                                             bottom = screenHeightDp - 132f + 32f,
                                         )
+                                    val catBehavior = state.behavior
+                                    val catRect =
+                                        if (catBehavior != null) {
+                                            val spriteDp = stageSpriteSize(state.stage).value
+                                            DpRect(
+                                                left = catBehavior.position.x,
+                                                top = catBehavior.position.y,
+                                                right = catBehavior.position.x + spriteDp,
+                                                bottom = catBehavior.position.y + spriteDp,
+                                            )
+                                        } else {
+                                            DpRect(0f, 0f, -1f, -1f)
+                                        }
                                     val target =
                                         dropTargetAt(
                                             position = ended.position,
@@ -349,11 +362,13 @@ fun PetScreen(
                                             bounds = bounds,
                                             bowlRect = bowlRect,
                                             poopRects = poopRects,
+                                            catRect = catRect,
                                         ) ?: return@detectDragGesturesAfterLongPress
                                     when (target) {
                                         DropTarget.Bowl -> vm.onFoodDroppedOnBowl()
                                         is DropTarget.Poop -> vm.onScoopDroppedOnPoop(target.index)
                                         is DropTarget.Floor -> vm.onToyDropped(target.position)
+                                        DropTarget.Cat -> vm.onBrushDroppedOnCat()
                                     }
                                 },
                                 onDragCancel = { dragController.end() },
@@ -375,6 +390,7 @@ fun PetScreen(
                     Item.Food -> R.drawable.food
                     Item.Scoop -> R.drawable.scoop
                     Item.Toy -> R.drawable.toy
+                    Item.Brush -> R.drawable.brush
                 }
             Image(
                 painter = painterResource(drawableId),

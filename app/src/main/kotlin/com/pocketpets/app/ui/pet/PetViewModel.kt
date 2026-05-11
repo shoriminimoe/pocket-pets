@@ -206,6 +206,8 @@ class PetViewModel(
         _world.value = _world.value.copy(toy = position)
     }
 
+    fun onBrushDroppedOnCat() = withActive { repo.groom(it) }
+
     fun onCatHeld() = withActive { repo.pet(it) }
 
     private fun withActive(block: suspend (Long) -> Unit) {

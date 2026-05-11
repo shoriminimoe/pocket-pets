@@ -127,6 +127,29 @@ def render_toy():
     return img
 
 
+def render_brush():
+    img = blank(48, 48)
+    d = ImageDraw.Draw(img)
+    handle = (140, 90, 50, 255)
+    handle_hi = (200, 150, 100, 255)
+    handle_dark = (90, 55, 30, 255)
+    backing = (170, 120, 70, 255)
+    backing_dark = (110, 70, 35, 255)
+    bristle = (240, 230, 210, 255)
+    bristle_dark = (180, 165, 140, 255)
+    rect(d, 6, 10, 18, 6, handle)
+    rect(d, 6, 10, 18, 1, handle_hi)
+    rect(d, 6, 15, 18, 1, handle_dark)
+    rect(d, 6, 12, 2, 2, handle_dark)
+    rect(d, 22, 16, 18, 10, backing)
+    rect(d, 22, 16, 18, 1, handle_hi)
+    rect(d, 22, 25, 18, 1, backing_dark)
+    for x in range(23, 40, 3):
+        rect(d, x, 26, 2, 12, bristle)
+        rect(d, x, 36, 2, 2, bristle_dark)
+    return img
+
+
 def render_bowl_full():
     img = blank(32, 16)
     d = ImageDraw.Draw(img)
@@ -150,6 +173,7 @@ def main():
     render_food().save(OUT / "food.png")
     render_scoop().save(OUT / "scoop.png")
     render_toy().save(OUT / "toy.png")
+    render_brush().save(OUT / "brush.png")
     print(f"Wrote decor sprites to {OUT}")
 
 

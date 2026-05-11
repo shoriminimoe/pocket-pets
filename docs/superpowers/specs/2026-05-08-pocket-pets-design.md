@@ -47,6 +47,7 @@ Each pet has four stats in `0..100`. Decay rates (per real-time hour):
 | Clean | Removes one poop, OR +10 cleanliness if no poops |
 | Pet | +5 happiness, capped at 5 successful pets per 10-minute rolling window |
 | Talk / tap pet | Triggers a speech bubble, +2 happiness |
+| Groom (brush) | +25 cleanliness, +2 happiness, capped at 3 successful grooms per 10-minute rolling window. Drag the brush from the inventory tray onto the cat. |
 
 ### 2.5 Mood (derived, not stored)
 

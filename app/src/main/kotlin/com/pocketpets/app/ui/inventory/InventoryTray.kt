@@ -20,7 +20,7 @@ import androidx.compose.ui.unit.dp
 import com.pocketpets.app.R
 
 /**
- * Bottom-of-screen tray with three layout-only slots: Food, Scoop, Toy.
+ * Bottom-of-screen tray with four layout-only slots: Food, Scoop, Toy, Brush.
  * Each slot reports its screen-relative rect (in dp) via [onSlotPositionChange]
  * so the parent screen can resolve a long-press start back to the picked-up
  * item without owning the gesture handler itself.
@@ -42,6 +42,7 @@ fun InventoryTray(
         TraySlot(item = Item.Food, drawable = R.drawable.food, onSlotPositionChange = onSlotPositionChange)
         TraySlot(item = Item.Scoop, drawable = R.drawable.scoop, onSlotPositionChange = onSlotPositionChange)
         TraySlot(item = Item.Toy, drawable = R.drawable.toy, onSlotPositionChange = onSlotPositionChange)
+        TraySlot(item = Item.Brush, drawable = R.drawable.brush, onSlotPositionChange = onSlotPositionChange)
     }
 }
 
