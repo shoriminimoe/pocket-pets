@@ -29,6 +29,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -52,7 +53,6 @@ import androidx.compose.ui.unit.dp
 import com.pocketpets.app.R
 import com.pocketpets.app.domain.GrowthStage
 import com.pocketpets.app.domain.Pet
-import com.pocketpets.app.domain.behavior.Anchors
 import com.pocketpets.app.domain.behavior.CatState
 import com.pocketpets.app.domain.behavior.HabitatBounds
 import com.pocketpets.app.domain.behavior.Position
@@ -95,15 +95,27 @@ fun PetScreen(
 
     val density = LocalDensity.current
     var habitatBoundsState by remember { mutableStateOf<HabitatBounds?>(null) }
-    var habitatAnchorsState by remember { mutableStateOf<Anchors?>(null) }
     var screenWidthDp by remember { mutableFloatStateOf(0f) }
     var screenHeightDp by remember { mutableFloatStateOf(0f) }
     val dragController = remember { DragController() }
     val slotRects = remember { mutableStateMapOf<Item, DpRect>() }
 
+    // Recompute habitat whenever the layout or growth stage changes. The
+    // sprite size depends on the stage (192/224/256 dp), and HabitatBounds
+    // must reserve that much room on the right and bottom — otherwise the
+    // sprite's box renders past the play area when the cat sits at maxX/maxY.
+    val spriteDp = stageSpriteSize(state.stage).value
+    LaunchedEffect(screenWidthDp, screenHeightDp, spriteDp) {
+        if (screenWidthDp <= 0f || screenHeightDp <= 0f) return@LaunchedEffect
+        val habitat = computeHabitat(screenWidthDp, screenHeightDp, spriteDp)
+        habitatBoundsState = habitat.bounds
+        vm.setHabitat(habitat.bounds, habitat.anchors)
+    }
+
     Box(modifier = modifier.fillMaxSize().background(Color(0xFFE9C9B6))) {
-        // Background room art. onSizeChanged reports floor bounds + anchors
-        // so the ViewModel's behavior tick can keep the cat on the floor.
+        // Background room art. onSizeChanged reports the dp size of the room
+        // so the LaunchedEffect above can rebuild bounds + anchors against the
+        // current sprite size.
         Image(
             painter = painterResource(R.drawable.room_bg),
             contentDescription = null,
@@ -112,38 +124,8 @@ fun PetScreen(
                     .fillMaxSize()
                     .onSizeChanged { sizePx ->
                         with(density) {
-                            val widthDp = sizePx.width.toDp().value
-                            val heightDp = sizePx.height.toDp().value
-                            // Floor is the lower portion of the room. Numbers
-                            // keep the cat above the inventory tray.
-                            val floorTopDp = heightDp * 0.40f
-                            val floorBottomDp = heightDp * 0.85f
-                            val spriteDp = 64f
-                            val bounds =
-                                HabitatBounds(
-                                    minX = 0f,
-                                    minY = floorTopDp,
-                                    maxX = (widthDp - spriteDp).coerceAtLeast(1f),
-                                    maxY = (floorBottomDp - spriteDp).coerceAtLeast(floorTopDp + 1f),
-                                )
-                            val anchors =
-                                Anchors(
-                                    bed =
-                                        Position(
-                                            x = (widthDp - spriteDp - 24f).coerceAtLeast(0f),
-                                            y = (floorBottomDp - spriteDp - 16f).coerceAtLeast(floorTopDp),
-                                        ),
-                                    bowl =
-                                        Position(
-                                            x = 24f,
-                                            y = (floorBottomDp - spriteDp - 16f).coerceAtLeast(floorTopDp),
-                                        ),
-                                )
-                            screenWidthDp = widthDp
-                            screenHeightDp = heightDp
-                            habitatBoundsState = bounds
-                            habitatAnchorsState = anchors
-                            vm.setHabitat(bounds, anchors)
+                            screenWidthDp = sizePx.width.toDp().value
+                            screenHeightDp = sizePx.height.toDp().value
                         }
                     },
             contentScale = ContentScale.FillBounds,
@@ -283,7 +265,8 @@ fun PetScreen(
 
             // Inventory tray with drag-gesture handler
             var trayRootOffsetPx by remember { mutableStateOf(Offset.Zero) }
-            Box(
+            
+                    Box(
                 modifier =
                     Modifier
                         .align(Alignment.BottomCenter)
@@ -291,7 +274,7 @@ fun PetScreen(
                         .onGloballyPositioned { coords ->
                             trayRootOffsetPx = coords.positionInRoot()
                         }.pointerInput(pet.id) {
-                            awaitEachGesture {
+                            awaitEachGesture  {
                                 val down = awaitFirstDown(requireUnconsumed = false)
                                 val startDp =
                                     with(density) {
@@ -340,6 +323,19 @@ fun PetScreen(
                                         right = 24f + 64f,
                                         bottom = screenHeightDp - 132f + 32f,
                                     )
+                                val catBehavior = state.behavior
+                                val catRect =
+                                    if (catBehavior != null) {
+                                        val spriteDp = stageSpriteSize(state.stage).value
+                                        DpRect(
+                                            left = catBehavior.position.x,
+                                            top = catBehavior.position.y,
+                                            right = catBehavior.position.x + spriteDp,
+                                            bottom = catBehavior.position.y + spriteDp,
+                                        )
+                                    } else {
+                                        DpRect(0f, 0f, -1f, -1f)
+                                    }
                                 val target =
                                     dropTargetAt(
                                         position = ended.position,
@@ -347,11 +343,13 @@ fun PetScreen(
                                         bounds = bounds,
                                         bowlRect = bowlRect,
                                         poopRects = poopRects,
+                                        catRect = catRect,
                                     ) ?: return@awaitEachGesture
                                 when (target) {
                                     DropTarget.Bowl -> vm.onFoodDroppedOnBowl()
                                     is DropTarget.Poop -> vm.onScoopDroppedOnPoop(target.index)
                                     is DropTarget.Floor -> vm.onToyDropped(target.position)
+                                    DropTarget.Cat -> vm.onBrushDroppedOnCat()
                                 }
                             }
                         },
@@ -371,6 +369,7 @@ fun PetScreen(
                     Item.Food -> R.drawable.food
                     Item.Scoop -> R.drawable.scoop
                     Item.Toy -> R.drawable.toy
+                    Item.Brush -> R.drawable.brush
                 }
             Image(
                 painter = painterResource(drawableId),

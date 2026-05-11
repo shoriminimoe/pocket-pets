@@ -77,6 +77,10 @@ class PetViewModelTest {
             calls += "talk:$id"
         }
 
+        override suspend fun groom(id: Long) {
+            calls += "groom:$id"
+        }
+
         override suspend fun runDecayTick(id: Long) {
             calls += "tick:$id"
         }

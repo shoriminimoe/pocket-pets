@@ -495,6 +495,28 @@ class CatBehaviorRulesTest {
     }
 
     @Test
+    fun `tick clamps a position above bounds back inside bounds`() {
+        // Initial position above the floor (e.g., screen layout shrank the floor
+        // upward). The cat must snap back into bounds rather than render above
+        // the play area while it lerps toward an in-bounds target.
+        val b = behavior(state = CatState.Idle, x = 100f, y = bounds.minY - 50f)
+        val out = CatBehaviorRules.tick(b, t0, 0.016f, Mood.IDLE, bounds, anchors, Random(0))
+        assertThat(out.position.y).isAtLeast(bounds.minY)
+        assertThat(out.position.y).isAtMost(bounds.maxY)
+        assertThat(out.position.x).isAtLeast(bounds.minX)
+        assertThat(out.position.x).isAtMost(bounds.maxX)
+    }
+
+    @Test
+    fun `tick clamps a position right of bounds back inside bounds`() {
+        // Bounds shrunk (e.g., growth stage bumped the sprite size, reducing
+        // the playable rectangle). The cat must snap left into bounds.
+        val b = behavior(state = CatState.Idle, x = bounds.maxX + 80f, y = 50f)
+        val out = CatBehaviorRules.tick(b, t0, 0.016f, Mood.IDLE, bounds, anchors, Random(0))
+        assertThat(out.position.x).isAtMost(bounds.maxX)
+    }
+
+    @Test
     fun `playing cat exits to Idle when stateUntil is reached`() {
         val until = t0.plusSeconds(10)
         val b =

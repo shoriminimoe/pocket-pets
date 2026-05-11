@@ -33,6 +33,8 @@ interface PetRepo {
 
     suspend fun talk(id: Long)
 
+    suspend fun groom(id: Long)
+
     suspend fun runDecayTick(id: Long)
 }
 
@@ -122,6 +124,26 @@ class PetRepository(
         mutate(id, "talk") { ticked ->
             val newStats =
                 ticked.stats.copy(
+                    happiness = (ticked.stats.happiness + 2f).coerceAtMost(100f),
+                )
+            ticked.copy(stats = newStats)
+        }
+    }
+
+    private val groomTimestamps = mutableMapOf<Long, ArrayDeque<Long>>()
+    private val groomWindowMs = 10L * 60 * 1000
+    private val groomMaxInWindow = 3
+
+    override suspend fun groom(id: Long) {
+        val now = clock.now().toEpochMilliseconds()
+        val window = groomTimestamps.getOrPut(id) { ArrayDeque() }
+        while (window.isNotEmpty() && now - window.first() > groomWindowMs) window.removeFirst()
+        if (window.size >= groomMaxInWindow) return
+        window.addLast(now)
+        mutate(id, "groom") { ticked ->
+            val newStats =
+                ticked.stats.copy(
+                    cleanliness = (ticked.stats.cleanliness + 25f).coerceAtMost(100f),
                     happiness = (ticked.stats.happiness + 2f).coerceAtMost(100f),
                 )
             ticked.copy(stats = newStats)
