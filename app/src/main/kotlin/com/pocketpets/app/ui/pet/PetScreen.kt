@@ -107,7 +107,14 @@ fun PetScreen(
     val spriteDp = stageSpriteSize(state.stage).value
     LaunchedEffect(screenWidthDp, screenHeightDp, spriteDp) {
         if (screenWidthDp <= 0f || screenHeightDp <= 0f) return@LaunchedEffect
-        val habitat = computeHabitat(screenWidthDp, screenHeightDp, spriteDp)
+        val habitat =
+            computeHabitat(
+                widthDp = screenWidthDp,
+                heightDp = screenHeightDp,
+                topReservedDp = screenHeightDp * 0.40f,
+                bottomReservedDp = screenHeightDp * 0.15f,
+                spriteDp = spriteDp,
+            )
         habitatBoundsState = habitat.bounds
         vm.setHabitat(habitat.bounds, habitat.anchors)
     }
