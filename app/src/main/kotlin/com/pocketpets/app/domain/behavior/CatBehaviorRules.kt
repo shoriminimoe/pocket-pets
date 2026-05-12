@@ -184,7 +184,7 @@ object CatBehaviorRules {
 
         // Target priority: SLEEPY bed > thrown toy > HUNGRY+filled bowl > nothing.
         // SLEEPY beats toy because going to sleep is a stronger drive than play;
-        // toy beats a hungry cat so a thrown toy redirects mid-walk to the bowl.
+        // toy beats a hungry cat so a thrown toy redirects a bowl-bound cat to the toy.
         // The toy's render position can land in `playAreaRect` outside the cat's
         // walkable `bounds`; targeting it raw would walk the cat off-screen and
         // oscillate (snapIntoBounds clamps the cat but not the target). Clamp the

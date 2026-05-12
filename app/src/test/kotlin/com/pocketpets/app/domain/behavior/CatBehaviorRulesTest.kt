@@ -566,6 +566,32 @@ class CatBehaviorRulesTest {
     }
 
     @Test
+    fun `toy dropped past left and top edges clamps cat target to bounds`() {
+        // Toy dropped above and left of bounds (raw playAreaRect can extend past
+        // minX/minY just as it can past maxX/maxY). Symmetric coverage with the
+        // right/bottom cases above to lock in both ends of the coerceIn clamp.
+        val rawToy = Position(-50f, -50f)
+        val world = HabitatWorld(toy = rawToy)
+        val b = behavior(state = CatState.Idle, x = 100f, y = 50f, targetX = 100f, targetY = 50f)
+        val out =
+            CatBehaviorRules.tick(
+                b,
+                t0,
+                0.016f,
+                Mood.IDLE,
+                bounds,
+                anchors,
+                Random(0),
+                world = world,
+            )
+        assertThat(out.state).isEqualTo(CatState.Walking)
+        assertThat(out.target.x).isAtLeast(bounds.minX)
+        assertThat(out.target.x).isAtMost(bounds.maxX)
+        assertThat(out.target.y).isAtLeast(bounds.minY)
+        assertThat(out.target.y).isAtMost(bounds.maxY)
+    }
+
+    @Test
     fun `walking cat that reaches clamped toy anchor becomes Playing even when toy is out of bounds`() {
         // Cat already at the clamped anchor (right edge); toy itself is past the edge.
         val rawToy = Position(bounds.maxX + 80f, 50f)
