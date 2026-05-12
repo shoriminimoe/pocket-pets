@@ -239,64 +239,74 @@ fun PetScreen(
         }
 
         if (pet != null) {
-            // Food bowl decor sits at the bottom-left. Switches to bowl_full when filled.
-            val playAreaBottom = screenHeightDp - bottomReservedDp
-            Image(
-                painter =
-                    painterResource(
-                        if (state.world.bowlFilled) R.drawable.bowl_full else R.drawable.bowl,
-                    ),
-                contentDescription = null,
-                modifier =
-                    Modifier
-                        .offset {
-                            with(density) {
-                                IntOffset(
-                                    x = 24.dp.roundToPx(),
-                                    y = (playAreaBottom - 32f - 16f).dp.roundToPx(),
-                                )
-                            }
-                        }.size(width = 64.dp, height = 32.dp),
-            )
-
-            // Toy on the floor when present
-            state.world.toy?.let { toyPos ->
-                Image(
-                    painter = painterResource(R.drawable.toy),
-                    contentDescription = null,
-                    modifier =
-                        Modifier
-                            .offset(x = toyPos.x.dp, y = toyPos.y.dp)
-                            .size(48.dp),
-                )
-            }
-
-            // Poops on the floor — deterministic per pet id
+            // Poop layout offsets are deterministic per pet id. Hoisted out of the
+            // bottomReservedDp gate below so the tray's onDragEnd can still resolve
+            // poop drop rects via poopRectFor before any decor renders.
             val poopOffsets =
                 remember(pet.id) {
                     val rng = Random(pet.id)
                     List(Pet.MAX_POOPS) { rng.nextInt(-100, 100) }
                 }
-            repeat(pet.poopCount) { i ->
-                val xOffset = poopOffsets[i]
-                val sizeDp = 48f
-                val bottomMargin = 16f + i * 6f
-                val xDp = screenWidthDp / 2f + xOffset - sizeDp / 2f
-                val yDp = playAreaBottom - bottomMargin - sizeDp
+
+            // Decor (bowl, toy, poops) anchors to playAreaBottom. Until the tray's
+            // onSizeChanged fires, bottomReservedDp is 0 and playAreaBottom would equal
+            // screenHeightDp — drawing the decor behind the not-yet-measured tray for
+            // one frame. Gate the decor block on bottomReservedDp so the flash is gone.
+            if (bottomReservedDp > 0f) {
+                val playAreaBottom = screenHeightDp - bottomReservedDp
+                // Food bowl decor sits at the bottom-left. Switches to bowl_full when filled.
                 Image(
-                    painter = painterResource(R.drawable.poop),
+                    painter =
+                        painterResource(
+                            if (state.world.bowlFilled) R.drawable.bowl_full else R.drawable.bowl,
+                        ),
                     contentDescription = null,
                     modifier =
                         Modifier
                             .offset {
                                 with(density) {
                                     IntOffset(
-                                        x = xDp.dp.roundToPx(),
-                                        y = yDp.dp.roundToPx(),
+                                        x = 24.dp.roundToPx(),
+                                        y = (playAreaBottom - 32f - 16f).dp.roundToPx(),
                                     )
                                 }
-                            }.size(sizeDp.dp),
+                            }.size(width = 64.dp, height = 32.dp),
                 )
+
+                // Toy on the floor when present
+                state.world.toy?.let { toyPos ->
+                    Image(
+                        painter = painterResource(R.drawable.toy),
+                        contentDescription = null,
+                        modifier =
+                            Modifier
+                                .offset(x = toyPos.x.dp, y = toyPos.y.dp)
+                                .size(48.dp),
+                    )
+                }
+
+                // Poops on the floor
+                repeat(pet.poopCount) { i ->
+                    val xOffset = poopOffsets[i]
+                    val sizeDp = 48f
+                    val bottomMargin = 16f + i * 6f
+                    val xDp = screenWidthDp / 2f + xOffset - sizeDp / 2f
+                    val yDp = playAreaBottom - bottomMargin - sizeDp
+                    Image(
+                        painter = painterResource(R.drawable.poop),
+                        contentDescription = null,
+                        modifier =
+                            Modifier
+                                .offset {
+                                    with(density) {
+                                        IntOffset(
+                                            x = xDp.dp.roundToPx(),
+                                            y = yDp.dp.roundToPx(),
+                                        )
+                                    }
+                                }.size(sizeDp.dp),
+                    )
+                }
             }
 
             // Inventory tray with drag-gesture handler
