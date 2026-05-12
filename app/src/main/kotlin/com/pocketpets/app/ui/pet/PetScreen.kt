@@ -51,11 +51,14 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import com.pocketpets.app.R
 import com.pocketpets.app.domain.GrowthStage
+import com.pocketpets.app.domain.Mood
 import com.pocketpets.app.domain.Pet
+import com.pocketpets.app.domain.behavior.CatBehavior
 import com.pocketpets.app.domain.behavior.CatState
 import com.pocketpets.app.domain.behavior.Position
 import com.pocketpets.app.ui.inventory.DRAG_PREVIEW_SIZE_DP
@@ -200,42 +203,13 @@ fun PetScreen(
             }
         }
 
-        // Pet sprite (offsetted by behavior.position) + speech bubble above it
+        // Pet sprite (offsetted by behavior.position) + speech bubble above it.
+        // The cat is drawn as part of the Y-sorted floor decor below so it
+        // depth-sorts against the bowl, toy and poops (issue #30). The speech
+        // bubble is drawn here at the top level so it always floats above the
+        // floor decor regardless of the cat's Y.
         val behavior = state.behavior
         if (pet != null && behavior != null) {
-            val animation = CatAnimations.forState(behavior.state)
-            val spriteSize = stageSpriteSize(state.stage)
-            val breathingScale = rememberBreathingScale()
-            val applyBreathing = behavior.state != CatState.Walking
-
-            Box(
-                modifier =
-                    Modifier
-                        .offset(x = behavior.position.x.dp, y = behavior.position.y.dp)
-                        .size(spriteSize)
-                        .pointerInput(Unit) {
-                            detectTapGestures(onLongPress = { vm.onCatHeld() })
-                        },
-            ) {
-                AnimatedSprite(
-                    animation = animation,
-                    modifier =
-                        Modifier
-                            .fillMaxSize()
-                            .let {
-                                if (applyBreathing) {
-                                    it.scale(scaleX = 1f, scaleY = breathingScale)
-                                } else {
-                                    it
-                                }
-                            },
-                    facing = CatAnimations.facingFor(behavior.state, behavior.facing),
-                )
-                MoodOverlay(
-                    mood = state.mood,
-                    modifier = Modifier.fillMaxSize(),
-                )
-            }
             // Speech bubble appears above the cat. The bubble measures its own
             // width via onSizeChanged, then computeSpeechBubblePlacement clamps
             // its X within the screen and re-anchors the tail toward the cat —
@@ -243,7 +217,7 @@ fun PetScreen(
             // It stays in composition while unmeasured (alpha 0) so onSizeChanged
             // fires; otherwise the first frame would draw the tail at the bubble's
             // left corner before the clamp settles.
-            val spriteDpValue = spriteSize.value
+            val spriteDpValue = stageSpriteSize(state.stage).value
             var bubbleWidthDp by remember { mutableFloatStateOf(0f) }
             val placement =
                 remember(behavior.position.x, spriteDpValue, bubbleWidthDp, screenWidthDp) {
@@ -292,92 +266,104 @@ fun PetScreen(
                     List(Pet.MAX_POOPS) { rng.nextInt(-100, 100) }
                 }
 
-            // Decor (bowl, toy, poops) anchors to playAreaBottom. Until the tray's
+            // Decor (cat, bowl, toy, poops) anchors to playAreaBottom. Until the tray's
             // onSizeChanged fires, bottomReservedDp is 0 and playAreaBottom would equal
             // screenHeightDp — drawing the decor behind the not-yet-measured tray for
             // one frame. Gate the decor block on bottomReservedDp so the flash is gone.
             if (bottomReservedDp > 0f) {
                 val playAreaBottom = screenHeightDp - bottomReservedDp
-                // Food bowl decor — draggable via long-press. world.bowlPosition is
-                // the source of truth; the default placement (computed from the
-                // measured play area) is used until the LaunchedEffect populates it.
+                // Bowl position is needed both for rendering and for the cat-feet
+                // depth comparison even when the cat isn't in this list.
                 val bowlPos =
                     state.world.bowlPosition
                         ?: defaultBowlPositionState
                         ?: Position(24f, playAreaBottom - BOWL_HEIGHT_DP - 16f)
-                Image(
-                    painter =
-                        painterResource(
-                            if (state.world.bowlFilled) R.drawable.bowl_full else R.drawable.bowl,
-                        ),
-                    contentDescription = null,
-                    modifier =
-                        Modifier
-                            .offset {
-                                with(density) {
-                                    IntOffset(
-                                        x = bowlPos.x.dp.roundToPx(),
-                                        y = bowlPos.y.dp.roundToPx(),
-                                    )
-                                }
-                            }.size(width = BOWL_WIDTH_DP.dp, height = BOWL_HEIGHT_DP.dp)
-                            .pointerInput(pet.id) {
-                                detectDragGesturesAfterLongPress(
-                                    onDrag = { change, dragAmountPx ->
-                                        change.consume()
-                                        // Same fallback chain as the rendered bowlPos above:
-                                        // if the LaunchedEffect hasn't populated
-                                        // defaultBowlPositionState yet, the rendered bowl uses
-                                        // the inline (24, floor) fallback — accept the first
-                                        // drag stroke from that same starting point instead of
-                                        // silently dropping it.
-                                        val current =
-                                            vm.state.value.world.bowlPosition
-                                                ?: defaultBowlPositionState
-                                                ?: Position(24f, playAreaBottom - BOWL_HEIGHT_DP - 16f)
-                                        val dx = with(density) { dragAmountPx.x.toDp().value }
-                                        val dy = with(density) { dragAmountPx.y.toDp().value }
-                                        vm.onBowlMoved(
-                                            Position(current.x + dx, current.y + dy),
-                                        )
-                                    },
+
+                // Assemble all floor-level sprites and sort by bottom-Y so
+                // whichever sprite's feet sit lower on the screen draws on top.
+                // Fixes #30: bowl no longer always covers the cat.
+                val floorSprites =
+                    buildList<FloorSprite> {
+                        if (behavior != null) {
+                            add(
+                                FloorSprite.Cat(
+                                    topLeftY = behavior.position.y,
+                                    spriteSizeDp = stageSpriteSize(state.stage).value,
+                                ),
+                            )
+                        }
+                        add(FloorSprite.Bowl(topLeftY = bowlPos.y))
+                        state.world.toy?.let { toyPos ->
+                            add(FloorSprite.Toy(topLeftY = toyPos.y))
+                        }
+                        repeat(pet.poopCount) { i ->
+                            // The x position is derived from poopOffsets[i] when
+                            // the sprite is rendered below — only the Y matters
+                            // for sorting.
+                            val bottomMargin = 16f + i * 6f
+                            val yDp = playAreaBottom - bottomMargin - POOP_SIZE_DP
+                            add(FloorSprite.Poop(index = i, topLeftY = yDp))
+                        }
+                    }
+                floorSpriteOrder(floorSprites).forEach { sprite ->
+                    when (sprite) {
+                        is FloorSprite.Cat ->
+                            if (behavior != null) {
+                                CatSprite(
+                                    behavior = behavior,
+                                    stage = state.stage,
+                                    mood = state.mood,
+                                    onLongPress = vm::onCatHeld,
                                 )
-                            },
-                )
-
-                // Toy on the floor when present
-                state.world.toy?.let { toyPos ->
-                    Image(
-                        painter = painterResource(R.drawable.toy),
-                        contentDescription = null,
-                        modifier =
-                            Modifier
-                                .offset(x = toyPos.x.dp, y = toyPos.y.dp)
-                                .size(48.dp),
-                    )
-                }
-
-                // Poops on the floor
-                repeat(pet.poopCount) { i ->
-                    val xOffset = poopOffsets[i]
-                    val sizeDp = 48f
-                    val bottomMargin = 16f + i * 6f
-                    val xDp = screenWidthDp / 2f + xOffset - sizeDp / 2f
-                    val yDp = playAreaBottom - bottomMargin - sizeDp
-                    Image(
-                        painter = painterResource(R.drawable.poop),
-                        contentDescription = null,
-                        modifier =
-                            Modifier
-                                .offset {
-                                    with(density) {
-                                        IntOffset(
-                                            x = xDp.dp.roundToPx(),
-                                            y = yDp.dp.roundToPx(),
-                                        )
-                                    }
-                                }.size(sizeDp.dp),
-                    )
+                            }
+                        is FloorSprite.Bowl ->
+                            BowlSprite(
+                                petId = pet.id,
+                                bowlPos = bowlPos,
+                                bowlFilled = state.world.bowlFilled,
+                                density = density,
+                                onDrag = { dragAmountPx ->
+                                    val current =
+                                        vm.state.value.world.bowlPosition
+                                            ?: defaultBowlPositionState
+                                            ?: Position(24f, playAreaBottom - BOWL_HEIGHT_DP - 16f)
+                                    val dx = with(density) { dragAmountPx.x.toDp().value }
+                                    val dy = with(density) { dragAmountPx.y.toDp().value }
+                                    vm.onBowlMoved(Position(current.x + dx, current.y + dy))
+                                },
+                            )
+                        is FloorSprite.Toy ->
+                            state.world.toy?.let { toyPos ->
+                                Image(
+                                    painter = painterResource(R.drawable.toy),
+                                    contentDescription = null,
+                                    modifier =
+                                        Modifier
+                                            .offset(x = toyPos.x.dp, y = toyPos.y.dp)
+                                            .size(TOY_SIZE_DP.dp),
+                                )
+                            }
+                        is FloorSprite.Poop -> {
+                            val i = sprite.index
+                            val xOffset = poopOffsets[i]
+                            val xDp = screenWidthDp / 2f + xOffset - POOP_SIZE_DP / 2f
+                            val yDp = sprite.topLeftY
+                            Image(
+                                painter = painterResource(R.drawable.poop),
+                                contentDescription = null,
+                                modifier =
+                                    Modifier
+                                        .offset {
+                                            with(density) {
+                                                IntOffset(
+                                                    x = xDp.dp.roundToPx(),
+                                                    y = yDp.dp.roundToPx(),
+                                                )
+                                            }
+                                        }.size(POOP_SIZE_DP.dp),
+                            )
+                        }
+                    }
                 }
             }
 
@@ -537,6 +523,90 @@ private fun stageSpriteSize(stage: GrowthStage) =
         GrowthStage.JUVENILE -> 224.dp
         GrowthStage.ADULT -> 256.dp
     }
+
+/**
+ * Cat sprite + mood overlay at [behavior.position]. Extracted from [PetScreen]
+ * so the cat can be emitted from the Y-sorted floor-decor list (issue #30).
+ */
+@Composable
+private fun CatSprite(
+    behavior: CatBehavior,
+    stage: GrowthStage,
+    mood: Mood,
+    onLongPress: () -> Unit,
+) {
+    val animation = CatAnimations.forState(behavior.state)
+    val spriteSize = stageSpriteSize(stage)
+    val breathingScale = rememberBreathingScale()
+    val applyBreathing = behavior.state != CatState.Walking
+    Box(
+        modifier =
+            Modifier
+                .offset(x = behavior.position.x.dp, y = behavior.position.y.dp)
+                .size(spriteSize)
+                .pointerInput(Unit) {
+                    detectTapGestures(onLongPress = { onLongPress() })
+                },
+    ) {
+        AnimatedSprite(
+            animation = animation,
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .let {
+                        if (applyBreathing) {
+                            it.scale(scaleX = 1f, scaleY = breathingScale)
+                        } else {
+                            it
+                        }
+                    },
+            facing = CatAnimations.facingFor(behavior.state, behavior.facing),
+        )
+        MoodOverlay(
+            mood = mood,
+            modifier = Modifier.fillMaxSize(),
+        )
+    }
+}
+
+/**
+ * Bowl sprite with long-press drag handler. Extracted from [PetScreen] so it
+ * can be emitted from the Y-sorted floor-decor list (issue #30).
+ */
+@Composable
+private fun BowlSprite(
+    petId: Long,
+    bowlPos: Position,
+    bowlFilled: Boolean,
+    density: Density,
+    onDrag: (Offset) -> Unit,
+) {
+    Image(
+        painter =
+            painterResource(
+                if (bowlFilled) R.drawable.bowl_full else R.drawable.bowl,
+            ),
+        contentDescription = null,
+        modifier =
+            Modifier
+                .offset {
+                    with(density) {
+                        IntOffset(
+                            x = bowlPos.x.dp.roundToPx(),
+                            y = bowlPos.y.dp.roundToPx(),
+                        )
+                    }
+                }.size(width = BOWL_WIDTH_DP.dp, height = BOWL_HEIGHT_DP.dp)
+                .pointerInput(petId) {
+                    detectDragGesturesAfterLongPress(
+                        onDrag = { change, dragAmountPx ->
+                            change.consume()
+                            onDrag(dragAmountPx)
+                        },
+                    )
+                },
+    )
+}
 
 /**
  * Subtle horizontal-pulse "breathing" applied to the sprite. Since the
