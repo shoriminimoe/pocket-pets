@@ -11,7 +11,7 @@ import org.junit.Test
  * See issue #30: prior to the fix the bowl always rendered above the cat
  * regardless of relative position.
  */
-class FloorDepthOrderTest {
+class FloorSpriteTest {
     @Test
     fun `cat below bowl on screen draws after bowl`() {
         // Cat sprite top-left y=300, sprite size 256 -> feet at 556.
@@ -72,5 +72,18 @@ class FloorDepthOrderTest {
     fun `single sprite returned as-is`() {
         val bowl = FloorSprite.Bowl(topLeftY = 100f)
         assertThat(floorSpriteOrder(listOf(bowl))).containsExactly(bowl).inOrder()
+    }
+
+    @Test
+    fun `cat below toy on screen draws after toy`() {
+        // Toy top-left y=100, size 48 -> feet at 148.
+        // Cat top-left y=200, sprite 256 -> feet at 456.
+        // Cat's feet are lower, so cat draws after toy.
+        val toy = FloorSprite.Toy(topLeftY = 100f)
+        val cat = FloorSprite.Cat(topLeftY = 200f, spriteSizeDp = 256f)
+
+        val sorted = floorSpriteOrder(listOf(cat, toy))
+
+        assertThat(sorted).containsExactly(toy, cat).inOrder()
     }
 }

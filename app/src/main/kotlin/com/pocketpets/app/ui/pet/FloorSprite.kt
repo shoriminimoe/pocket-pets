@@ -45,12 +45,6 @@ sealed class FloorSprite {
     }
 }
 
-/** Footprint of the toy sprite as drawn in [PetScreen]. */
-const val TOY_SIZE_DP = 48f
-
-/** Footprint of each poop sprite as drawn in [PetScreen]. */
-const val POOP_SIZE_DP = 48f
-
 /**
  * Returns [sprites] sorted by their bottom-Y anchor ascending — smaller Y
  * first so it draws underneath, larger Y last so it draws on top. The sort

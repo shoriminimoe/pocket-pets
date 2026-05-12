@@ -203,58 +203,12 @@ fun PetScreen(
             }
         }
 
-        // Pet sprite (offsetted by behavior.position) + speech bubble above it.
-        // The cat is drawn as part of the Y-sorted floor decor below so it
-        // depth-sorts against the bowl, toy and poops (issue #30). The speech
-        // bubble is drawn here at the top level so it always floats above the
-        // floor decor regardless of the cat's Y.
+        // Pet sprite (offsetted by behavior.position). The cat is drawn as
+        // part of the Y-sorted floor decor below so it depth-sorts against
+        // the bowl, toy and poops (issue #30). The speech bubble is emitted
+        // *after* the floor decor (below) so it always floats above all
+        // floor sprites regardless of their bottom-Y.
         val behavior = state.behavior
-        if (pet != null && behavior != null) {
-            // Speech bubble appears above the cat. The bubble measures its own
-            // width via onSizeChanged, then computeSpeechBubblePlacement clamps
-            // its X within the screen and re-anchors the tail toward the cat —
-            // so it can't run off the left/right edges when the cat is near one.
-            // It stays in composition while unmeasured (alpha 0) so onSizeChanged
-            // fires; otherwise the first frame would draw the tail at the bubble's
-            // left corner before the clamp settles.
-            val spriteDpValue = stageSpriteSize(state.stage).value
-            var bubbleWidthDp by remember { mutableFloatStateOf(0f) }
-            val placement =
-                remember(behavior.position.x, spriteDpValue, bubbleWidthDp, screenWidthDp) {
-                    if (bubbleWidthDp <= 0f || screenWidthDp <= 0f) {
-                        null
-                    } else {
-                        computeSpeechBubblePlacement(
-                            catX = behavior.position.x,
-                            catWidth = spriteDpValue,
-                            bubbleWidth = bubbleWidthDp,
-                            screenWidth = screenWidthDp,
-                            horizontalPadding = SPEECH_BUBBLE_EDGE_PADDING_DP,
-                            tailMargin = SPEECH_BUBBLE_TAIL_MARGIN_DP,
-                        )
-                    }
-                }
-            val measured = placement != null
-            val bubbleX = placement?.bubbleX ?: behavior.position.x
-            val tailDp = placement?.tailX?.dp ?: (bubbleWidthDp / 2f).dp
-            Box(
-                modifier =
-                    Modifier
-                        .offset(x = bubbleX.dp, y = (behavior.position.y - 64f).dp)
-                        .alpha(if (measured) 1f else 0f)
-                        .onSizeChanged { sizePx ->
-                            with(density) {
-                                bubbleWidthDp = sizePx.width.toDp().value
-                            }
-                        },
-            ) {
-                SpeechBubble(
-                    phrase = state.activePhrase,
-                    onDismiss = vm::dismissPhrase,
-                    tailX = tailDp,
-                )
-            }
-        }
 
         if (pet != null) {
             // Poop layout offsets are deterministic per pet id. Hoisted out of the
@@ -272,8 +226,9 @@ fun PetScreen(
             // one frame. Gate the decor block on bottomReservedDp so the flash is gone.
             if (bottomReservedDp > 0f) {
                 val playAreaBottom = screenHeightDp - bottomReservedDp
-                // Bowl position is needed both for rendering and for the cat-feet
-                // depth comparison even when the cat isn't in this list.
+                // Bowl position is always rendered (and added to the depth-sort
+                // list below); resolved here once so it can be passed to the
+                // BowlSprite renderer with a stable fallback chain.
                 val bowlPos =
                     state.world.bowlPosition
                         ?: defaultBowlPositionState
@@ -281,31 +236,46 @@ fun PetScreen(
 
                 // Assemble all floor-level sprites and sort by bottom-Y so
                 // whichever sprite's feet sit lower on the screen draws on top.
-                // Fixes #30: bowl no longer always covers the cat.
-                val floorSprites =
-                    buildList<FloorSprite> {
-                        if (behavior != null) {
-                            add(
-                                FloorSprite.Cat(
-                                    topLeftY = behavior.position.y,
-                                    spriteSizeDp = stageSpriteSize(state.stage).value,
-                                ),
-                            )
-                        }
-                        add(FloorSprite.Bowl(topLeftY = bowlPos.y))
-                        state.world.toy?.let { toyPos ->
-                            add(FloorSprite.Toy(topLeftY = toyPos.y))
-                        }
-                        repeat(pet.poopCount) { i ->
-                            // The x position is derived from poopOffsets[i] when
-                            // the sprite is rendered below — only the Y matters
-                            // for sorting.
-                            val bottomMargin = 16f + i * 6f
-                            val yDp = playAreaBottom - bottomMargin - POOP_SIZE_DP
-                            add(FloorSprite.Poop(index = i, topLeftY = yDp))
-                        }
+                // Fixes #30: bowl no longer always covers the cat. Memoised so
+                // recompositions that don't change any sprite's Y don't
+                // reallocate + re-sort the list.
+                val toyY = state.world.toy?.y
+                val behaviorY = behavior?.position?.y
+                val sortedFloorSprites =
+                    remember(
+                        behaviorY,
+                        bowlPos.y,
+                        toyY,
+                        pet.poopCount,
+                        state.stage,
+                        playAreaBottom,
+                    ) {
+                        val sprites =
+                            buildList<FloorSprite> {
+                                if (behavior != null) {
+                                    add(
+                                        FloorSprite.Cat(
+                                            topLeftY = behavior.position.y,
+                                            spriteSizeDp = stageSpriteSize(state.stage).value,
+                                        ),
+                                    )
+                                }
+                                add(FloorSprite.Bowl(topLeftY = bowlPos.y))
+                                state.world.toy?.let { toyPos ->
+                                    add(FloorSprite.Toy(topLeftY = toyPos.y))
+                                }
+                                repeat(pet.poopCount) { i ->
+                                    // The x position is derived from poopOffsets[i]
+                                    // when the sprite is rendered below — only the
+                                    // Y matters for sorting.
+                                    val bottomMargin = 16f + i * 6f
+                                    val yDp = playAreaBottom - bottomMargin - POOP_SIZE_DP
+                                    add(FloorSprite.Poop(index = i, topLeftY = yDp))
+                                }
+                            }
+                        floorSpriteOrder(sprites)
                     }
-                floorSpriteOrder(floorSprites).forEach { sprite ->
+                sortedFloorSprites.forEach { sprite ->
                     when (sprite) {
                         is FloorSprite.Cat ->
                             if (behavior != null) {
@@ -364,6 +334,55 @@ fun PetScreen(
                             )
                         }
                     }
+                }
+            }
+
+            // Speech bubble — emitted after the floor decor so it always
+            // floats above every floor sprite regardless of bottom-Y. Anchored
+            // above the cat at its current position. The bubble measures its
+            // own width via onSizeChanged, then computeSpeechBubblePlacement
+            // clamps its X within the screen and re-anchors the tail toward
+            // the cat — so it can't run off the left/right edges when the cat
+            // is near one. It stays in composition while unmeasured (alpha 0)
+            // so onSizeChanged fires; otherwise the first frame would draw
+            // the tail at the bubble's left corner before the clamp settles.
+            if (behavior != null) {
+                val spriteDpValue = stageSpriteSize(state.stage).value
+                var bubbleWidthDp by remember { mutableFloatStateOf(0f) }
+                val placement =
+                    remember(behavior.position.x, spriteDpValue, bubbleWidthDp, screenWidthDp) {
+                        if (bubbleWidthDp <= 0f || screenWidthDp <= 0f) {
+                            null
+                        } else {
+                            computeSpeechBubblePlacement(
+                                catX = behavior.position.x,
+                                catWidth = spriteDpValue,
+                                bubbleWidth = bubbleWidthDp,
+                                screenWidth = screenWidthDp,
+                                horizontalPadding = SPEECH_BUBBLE_EDGE_PADDING_DP,
+                                tailMargin = SPEECH_BUBBLE_TAIL_MARGIN_DP,
+                            )
+                        }
+                    }
+                val measured = placement != null
+                val bubbleX = placement?.bubbleX ?: behavior.position.x
+                val tailDp = placement?.tailX?.dp ?: (bubbleWidthDp / 2f).dp
+                Box(
+                    modifier =
+                        Modifier
+                            .offset(x = bubbleX.dp, y = (behavior.position.y - 64f).dp)
+                            .alpha(if (measured) 1f else 0f)
+                            .onSizeChanged { sizePx ->
+                                with(density) {
+                                    bubbleWidthDp = sizePx.width.toDp().value
+                                }
+                            },
+                ) {
+                    SpeechBubble(
+                        phrase = state.activePhrase,
+                        onDismiss = vm::dismissPhrase,
+                        tailX = tailDp,
+                    )
                 }
             }
 
