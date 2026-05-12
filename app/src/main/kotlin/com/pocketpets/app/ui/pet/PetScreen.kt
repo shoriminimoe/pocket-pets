@@ -55,7 +55,6 @@ import com.pocketpets.app.R
 import com.pocketpets.app.domain.GrowthStage
 import com.pocketpets.app.domain.Pet
 import com.pocketpets.app.domain.behavior.CatState
-import com.pocketpets.app.domain.behavior.HabitatBounds
 import com.pocketpets.app.domain.behavior.Position
 import com.pocketpets.app.ui.inventory.DpRect
 import com.pocketpets.app.ui.inventory.DragController
@@ -95,7 +94,6 @@ fun PetScreen(
     val pet = state.pet
 
     val density = LocalDensity.current
-    var habitatBoundsState by remember { mutableStateOf<HabitatBounds?>(null) }
     var screenWidthDp by remember { mutableFloatStateOf(0f) }
     var screenHeightDp by remember { mutableFloatStateOf(0f) }
     var topReservedDp by remember { mutableFloatStateOf(0f) }
@@ -124,7 +122,6 @@ fun PetScreen(
                 bottomReservedDp = bottomReservedDp,
                 spriteDp = spriteDp,
             )
-        habitatBoundsState = habitat.bounds
         vm.setHabitat(habitat.bounds, habitat.anchors)
     }
 
