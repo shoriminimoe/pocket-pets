@@ -301,113 +301,112 @@ fun PetScreen(
 
             // Inventory tray with drag-gesture handler
             var trayRootOffsetPx by remember { mutableStateOf(Offset.Zero) }
-            
-                    
-                    Box(
+
+            Box(
                 modifier =
-                        Modifier
-                            .align(Alignment.BottomCenter)
-                            .fillMaxWidth()
-                            .onSizeChanged { sizePx ->
-                                with(density) {
-                                    bottomReservedDp = sizePx.height.toDp().value
-                                }
-                            }.onGloballyPositioned { coords ->
-                                trayRootOffsetPx = coords.positionInRoot()
-                            }.pointerInput(pet.id) {
-                                awaitEachGesture   {
-                                    val down = awaitFirstDown(requireUnconsumed = false)
-                                    val startDp =
+                    Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth()
+                        .onSizeChanged { sizePx ->
+                            with(density) {
+                                bottomReservedDp = sizePx.height.toDp().value
+                            }
+                        }.onGloballyPositioned { coords ->
+                            trayRootOffsetPx = coords.positionInRoot()
+                        }.pointerInput(pet.id) {
+                            awaitEachGesture {
+                                val down = awaitFirstDown(requireUnconsumed = false)
+                                val startDp =
+                                    with(density) {
+                                        Position(
+                                            (down.position.x + trayRootOffsetPx.x).toDp().value,
+                                            (down.position.y + trayRootOffsetPx.y).toDp().value,
+                                        )
+                                    }
+                                val pickedItem =
+                                    slotRects.entries
+                                        .firstOrNull { (_, r) -> r.contains(startDp) }
+                                        ?.key ?: return@awaitEachGesture
+                                dragController.start(pickedItem, startDp)
+                                down.consume()
+
+                                var lifted = false
+                                while (true) {
+                                    val event = awaitPointerEvent()
+                                    val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                                    val pos =
                                         with(density) {
                                             Position(
-                                                (down.position.x + trayRootOffsetPx.x).toDp().value,
-                                                (down.position.y + trayRootOffsetPx.y).toDp().value,
+                                                (change.position.x + trayRootOffsetPx.x).toDp().value,
+                                                (change.position.y + trayRootOffsetPx.y).toDp().value,
                                             )
                                         }
-                                    val pickedItem =
-                                        slotRects.entries
-                                            .firstOrNull { (_, r) -> r.contains(startDp) }
-                                            ?.key ?: return@awaitEachGesture
-                                    dragController.start(pickedItem, startDp)
-                                    down.consume()
-
-                                    var lifted = false
-                                    while (true) {
-                                        val event = awaitPointerEvent()
-                                        val change = event.changes.firstOrNull { it.id == down.id } ?: break
-                                        val pos =
-                                            with(density) {
-                                                Position(
-                                                    (change.position.x + trayRootOffsetPx.x).toDp().value,
-                                                    (change.position.y + trayRootOffsetPx.y).toDp().value,
-                                                )
-                                            }
-                                        dragController.move(pos)
-                                        change.consume()
-                                        if (!change.pressed) {
-                                            lifted = true
-                                            break
-                                        }
-                                    }
-
-                                    val ended = dragController.end()
-                                    if (!lifted || ended == null) return@awaitEachGesture
-                                    if (screenWidthDp <= 0f ||
-                                        screenHeightDp <= 0f ||
-                                        topReservedDp <= 0f ||
-                                        bottomReservedDp <= 0f
-                                    ) {
-                                        return@awaitEachGesture
-                                    }
-                                    val playAreaBottomLocal = screenHeightDp - bottomReservedDp
-                                    val playAreaRect =
-                                        DpRect(
-                                            left = 0f,
-                                            top = topReservedDp,
-                                            right = screenWidthDp,
-                                            bottom = playAreaBottomLocal,
-                                        )
-                                    val poopRects =
-                                        (0 until pet.poopCount).map { i ->
-                                            poopRectFor(i, poopOffsets, screenWidthDp, playAreaBottomLocal)
-                                        }
-                                    val bowlRect =
-                                        DpRect(
-                                            left = 24f,
-                                            top = playAreaBottomLocal - 32f - 16f,
-                                            right = 24f + 64f,
-                                            bottom = playAreaBottomLocal - 16f,
-                                        )
-                                    val catBehavior = state.behavior
-                                    val catRect =
-                                        if (catBehavior != null) {
-                                            val spriteDp = stageSpriteSize(state.stage).value
-                                            DpRect(
-                                                left = catBehavior.position.x,
-                                                top = catBehavior.position.y,
-                                                right = catBehavior.position.x + spriteDp,
-                                                bottom = catBehavior.position.y + spriteDp,
-                                            )
-                                        } else {
-                                            DpRect(0f, 0f, -1f, -1f)
-                                        }
-                                    val target =
-                                        dropTargetAt(
-                                            position = ended.position,
-                                            item = ended.item,
-                                            playAreaRect = playAreaRect,
-                                            bowlRect = bowlRect,
-                                            poopRects = poopRects,
-                                            catRect = catRect,
-                                        ) ?: return@awaitEachGesture
-                                    when (target) {
-                                        DropTarget.Bowl -> vm.onFoodDroppedOnBowl()
-                                        is DropTarget.Poop -> vm.onScoopDroppedOnPoop(target.index)
-                                        is DropTarget.Floor -> vm.onToyDropped(target.position)
-                                        DropTarget.Cat -> vm.onBrushDroppedOnCat()
+                                    dragController.move(pos)
+                                    change.consume()
+                                    if (!change.pressed) {
+                                        lifted = true
+                                        break
                                     }
                                 }
-                            },
+
+                                val ended = dragController.end()
+                                if (!lifted || ended == null) return@awaitEachGesture
+                                if (screenWidthDp <= 0f ||
+                                    screenHeightDp <= 0f ||
+                                    topReservedDp <= 0f ||
+                                    bottomReservedDp <= 0f
+                                ) {
+                                    return@awaitEachGesture
+                                }
+                                val playAreaBottomLocal = screenHeightDp - bottomReservedDp
+                                val playAreaRect =
+                                    DpRect(
+                                        left = 0f,
+                                        top = topReservedDp,
+                                        right = screenWidthDp,
+                                        bottom = playAreaBottomLocal,
+                                    )
+                                val poopRects =
+                                    (0 until pet.poopCount).map { i ->
+                                        poopRectFor(i, poopOffsets, screenWidthDp, playAreaBottomLocal)
+                                    }
+                                val bowlRect =
+                                    DpRect(
+                                        left = 24f,
+                                        top = playAreaBottomLocal - 32f - 16f,
+                                        right = 24f + 64f,
+                                        bottom = playAreaBottomLocal - 16f,
+                                    )
+                                val catBehavior = state.behavior
+                                val catRect =
+                                    if (catBehavior != null) {
+                                        val spriteDp = stageSpriteSize(state.stage).value
+                                        DpRect(
+                                            left = catBehavior.position.x,
+                                            top = catBehavior.position.y,
+                                            right = catBehavior.position.x + spriteDp,
+                                            bottom = catBehavior.position.y + spriteDp,
+                                        )
+                                    } else {
+                                        DpRect(0f, 0f, -1f, -1f)
+                                    }
+                                val target =
+                                    dropTargetAt(
+                                        position = ended.position,
+                                        item = ended.item,
+                                        playAreaRect = playAreaRect,
+                                        bowlRect = bowlRect,
+                                        poopRects = poopRects,
+                                        catRect = catRect,
+                                    ) ?: return@awaitEachGesture
+                                when (target) {
+                                    DropTarget.Bowl -> vm.onFoodDroppedOnBowl()
+                                    is DropTarget.Poop -> vm.onScoopDroppedOnPoop(target.index)
+                                    is DropTarget.Floor -> vm.onToyDropped(target.position)
+                                    DropTarget.Cat -> vm.onBrushDroppedOnCat()
+                                }
+                            }
+                        },
             ) {
                 InventoryTray(
                     onSlotPositionChange = { item, leftDp, topDp, sizeDp ->
