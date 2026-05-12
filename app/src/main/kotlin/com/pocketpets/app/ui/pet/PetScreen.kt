@@ -56,12 +56,14 @@ import com.pocketpets.app.domain.Pet
 import com.pocketpets.app.domain.behavior.CatState
 import com.pocketpets.app.domain.behavior.HabitatBounds
 import com.pocketpets.app.domain.behavior.Position
+import com.pocketpets.app.ui.inventory.DRAG_PREVIEW_SIZE_DP
 import com.pocketpets.app.ui.inventory.DpRect
 import com.pocketpets.app.ui.inventory.DragController
 import com.pocketpets.app.ui.inventory.DropTarget
 import com.pocketpets.app.ui.inventory.InventoryTray
 import com.pocketpets.app.ui.inventory.Item
 import com.pocketpets.app.ui.inventory.dropTargetAt
+import com.pocketpets.app.ui.inventory.previewCenterFor
 import com.pocketpets.app.ui.sprite.AnimatedSprite
 import kotlin.random.Random
 
@@ -275,7 +277,7 @@ fun PetScreen(
                         }.pointerInput(pet.id) {
                             awaitEachGesture {
                                 val down = awaitFirstDown(requireUnconsumed = false)
-                                val startDp =
+                                val fingerStartDp =
                                     with(density) {
                                         Position(
                                             (down.position.x + trayRootOffsetPx.x).toDp().value,
@@ -284,23 +286,23 @@ fun PetScreen(
                                     }
                                 val pickedItem =
                                     slotRects.entries
-                                        .firstOrNull { (_, r) -> r.contains(startDp) }
+                                        .firstOrNull { (_, r) -> r.contains(fingerStartDp) }
                                         ?.key ?: return@awaitEachGesture
-                                dragController.start(pickedItem, startDp)
+                                dragController.start(pickedItem, previewCenterFor(fingerStartDp))
                                 down.consume()
 
                                 var lifted = false
                                 while (true) {
                                     val event = awaitPointerEvent()
                                     val change = event.changes.firstOrNull { it.id == down.id } ?: break
-                                    val pos =
+                                    val fingerDp =
                                         with(density) {
                                             Position(
                                                 (change.position.x + trayRootOffsetPx.x).toDp().value,
                                                 (change.position.y + trayRootOffsetPx.y).toDp().value,
                                             )
                                         }
-                                    dragController.move(pos)
+                                    dragController.move(previewCenterFor(fingerDp))
                                     change.consume()
                                     if (!change.pressed) {
                                         lifted = true
@@ -361,7 +363,7 @@ fun PetScreen(
             }
         }
 
-        // Drag overlay — renders the in-flight item icon at the pointer position.
+        // Drag overlay — icon centred on the lifted preview position, above the finger.
         dragController.inFlight?.let { drag ->
             val drawableId =
                 when (drag.item) {
@@ -370,13 +372,14 @@ fun PetScreen(
                     Item.Toy -> R.drawable.toy
                     Item.Brush -> R.drawable.brush
                 }
+            val half = DRAG_PREVIEW_SIZE_DP / 2f
             Image(
                 painter = painterResource(drawableId),
                 contentDescription = null,
                 modifier =
                     Modifier
-                        .offset(x = (drag.position.x - 32f).dp, y = (drag.position.y - 32f).dp)
-                        .size(64.dp),
+                        .offset(x = (drag.position.x - half).dp, y = (drag.position.y - half).dp)
+                        .size(DRAG_PREVIEW_SIZE_DP.dp),
             )
         }
     }
