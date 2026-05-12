@@ -185,10 +185,16 @@ object CatBehaviorRules {
         // Target priority: SLEEPY bed > thrown toy > HUNGRY+filled bowl > nothing.
         // SLEEPY beats toy because going to sleep is a stronger drive than play;
         // toy beats a hungry cat so a thrown toy redirects mid-walk to the bowl.
+        // The toy's render position can land in `playAreaRect` outside the cat's
+        // walkable `bounds`; targeting it raw would walk the cat off-screen and
+        // oscillate (snapIntoBounds clamps the cat but not the target). Clamp the
+        // toy into bounds via `playAnchorFor` so the cat stops at the nearest
+        // in-bounds position while `world.toy` (the rendered toy) stays put.
+        val playAnchor: Position? = world.toy?.let { playAnchorFor(it, bounds) }
         val targetOverride: Position? =
             when {
                 mood == Mood.SLEEPY -> anchors.bed
-                world.toy != null -> world.toy
+                playAnchor != null -> playAnchor
                 mood == Mood.HUNGRY && world.bowlFilled -> bAnchor
                 else -> null
             }
@@ -237,7 +243,7 @@ object CatBehaviorRules {
                             now.toEpochMilliseconds() + EATING_DURATION_SECONDS * 1000L,
                         ),
                 )
-            effectiveTarget == world.toy ->
+            playAnchor != null && effectiveTarget == playAnchor ->
                 b.copy(
                     state = CatState.Playing,
                     position = effectiveTarget,
@@ -305,3 +311,17 @@ private fun Random.nextFloatInRange(
     min: Float,
     max: Float,
 ): Float = min + nextFloat() * (max - min)
+
+/**
+ * Cat destination derived from a toy's raw drop position. Mirrors
+ * [com.pocketpets.app.ui.pet.bowlAnchorFor]: the toy's render position is left
+ * alone, but the cat's target is clamped into the cat-walkable [bounds] so a
+ * toy dropped past the edge of the play area still has a reachable destination
+ * inside the habitat. Without this, [CatBehaviorRules.tick]'s `snapIntoBounds`
+ * would pull the cat back inside bounds while leaving the target outside,
+ * producing endless walk/snap oscillation and a never-arrived Playing state.
+ */
+fun playAnchorFor(
+    toyPosition: Position,
+    bounds: HabitatBounds,
+): Position = bounds.clamp(toyPosition)
