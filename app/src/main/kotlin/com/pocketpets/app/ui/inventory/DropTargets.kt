@@ -23,6 +23,9 @@ private const val FOOD_HIT_ABOVE_PAD_DP = 48f
  * [FOOD_HIT_ABOVE_PAD_DP] upward, then extended downward to the play area's bottom so
  * any drop in the floor band below the bowl also counts (issue #29). The bowl's
  * visual size in [bowlRect] is unchanged.
+ *
+ * Visibility is `internal` (rather than `private`) so unit tests in the same module can
+ * exercise the hit-zone geometry directly without going through [dropTargetAt].
  */
 internal fun foodHitZoneFor(
     bowlRect: DpRect,
@@ -32,6 +35,9 @@ internal fun foodHitZoneFor(
         left = bowlRect.left - FOOD_HIT_SIDE_PAD_DP,
         top = bowlRect.top - FOOD_HIT_ABOVE_PAD_DP,
         right = bowlRect.right + FOOD_HIT_SIDE_PAD_DP,
+        // In practice the bowl is always placed above the floor so `playAreaRect.bottom`
+        // wins here; the `maxOf` is defensive against future layouts that might place
+        // the bowl lower than the play area's bottom edge.
         bottom = maxOf(bowlRect.bottom, playAreaRect.bottom),
     )
 
