@@ -40,6 +40,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -235,15 +236,48 @@ fun PetScreen(
                     modifier = Modifier.fillMaxSize(),
                 )
             }
-            // Speech bubble appears above the cat at its current position.
+            // Speech bubble appears above the cat. The bubble measures its own
+            // width via onSizeChanged, then computeSpeechBubblePlacement clamps
+            // its X within the screen and re-anchors the tail toward the cat —
+            // so it can't run off the left/right edges when the cat is near one.
+            // It stays in composition while unmeasured (alpha 0) so onSizeChanged
+            // fires; otherwise the first frame would draw the tail at the bubble's
+            // left corner before the clamp settles.
+            val spriteDpValue = spriteSize.value
+            var bubbleWidthDp by remember { mutableFloatStateOf(0f) }
+            val placement =
+                remember(behavior.position.x, spriteDpValue, bubbleWidthDp, screenWidthDp) {
+                    if (bubbleWidthDp <= 0f || screenWidthDp <= 0f) {
+                        null
+                    } else {
+                        computeSpeechBubblePlacement(
+                            catX = behavior.position.x,
+                            catWidth = spriteDpValue,
+                            bubbleWidth = bubbleWidthDp,
+                            screenWidth = screenWidthDp,
+                            horizontalPadding = SPEECH_BUBBLE_EDGE_PADDING_DP,
+                            tailMargin = SPEECH_BUBBLE_TAIL_MARGIN_DP,
+                        )
+                    }
+                }
+            val measured = placement != null
+            val bubbleX = placement?.bubbleX ?: behavior.position.x
+            val tailDp = placement?.tailX?.dp ?: (bubbleWidthDp / 2f).dp
             Box(
                 modifier =
                     Modifier
-                        .offset(x = behavior.position.x.dp, y = (behavior.position.y - 64f).dp),
+                        .offset(x = bubbleX.dp, y = (behavior.position.y - 64f).dp)
+                        .alpha(if (measured) 1f else 0f)
+                        .onSizeChanged { sizePx ->
+                            with(density) {
+                                bubbleWidthDp = sizePx.width.toDp().value
+                            }
+                        },
             ) {
                 SpeechBubble(
                     phrase = state.activePhrase,
                     onDismiss = vm::dismissPhrase,
+                    tailX = tailDp,
                 )
             }
         }
