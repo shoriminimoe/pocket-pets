@@ -517,6 +517,57 @@ class CatBehaviorRulesTest {
     }
 
     @Test
+    fun `hungry cat targets world bowlPosition, not the cached anchors bowl`() {
+        // Stale anchor case: the world's bowlPosition has moved to x=150, but
+        // the anchor cache still points to x=20. The cat must follow the world's
+        // bowl, not the stale anchor.
+        val world = HabitatWorld(bowlFilled = true, bowlPosition = Position(150f, 60f))
+        val b = behavior(state = CatState.Idle, x = 50f, y = 50f, targetX = 50f, targetY = 50f)
+        val out =
+            CatBehaviorRules.tick(
+                b,
+                t0,
+                0.016f,
+                Mood.HUNGRY,
+                bounds,
+                anchors,
+                Random(0),
+                world = world,
+            )
+        assertThat(out.state).isEqualTo(CatState.Walking)
+        assertThat(out.target.x).isEqualTo(150f)
+        // Floor-y from anchors.bowl is preserved so the cat stands on the floor.
+        assertThat(out.target.y).isEqualTo(anchors.bowl.y)
+    }
+
+    @Test
+    fun `cat arriving at world bowlPosition transitions to Eating`() {
+        val world = HabitatWorld(bowlFilled = true, bowlPosition = Position(150f, 60f))
+        val targetX = 150f
+        val targetY = anchors.bowl.y
+        val b =
+            behavior(
+                state = CatState.Walking,
+                x = targetX,
+                y = targetY,
+                targetX = targetX,
+                targetY = targetY,
+            )
+        val out =
+            CatBehaviorRules.tick(
+                b,
+                t0,
+                0.1f,
+                Mood.HUNGRY,
+                bounds,
+                anchors,
+                Random(0),
+                world = world,
+            )
+        assertThat(out.state).isEqualTo(CatState.Eating)
+    }
+
+    @Test
     fun `playing cat exits to Idle when stateUntil is reached`() {
         val until = t0.plusSeconds(10)
         val b =

@@ -69,7 +69,7 @@ object CatBehaviorRules {
             Mood.SLEEPY -> anchors.bed
             Mood.HUNGRY ->
                 if (world.bowlFilled) {
-                    anchors.bowl
+                    bowlAnchor(anchors, bounds, world)
                 } else {
                     Position(
                         x = rng.nextFloatInRange(bounds.minX, bounds.maxX),
@@ -82,6 +82,23 @@ object CatBehaviorRules {
                     y = rng.nextFloatInRange(bounds.minY, bounds.maxY),
                 )
         }
+
+    /**
+     * Where the cat stands to eat. [world]'s `bowlPosition` is the source of
+     * truth for the bowl's location, so the cat follows the bowl as the user
+     * drags it. Falls back to [anchors] `bowl` while no world position is set
+     * (i.e., before the screen has measured). The y is taken from `anchors.bowl`
+     * so the cat's feet remain on the floor anchor line regardless of the
+     * bowl's rendered y.
+     */
+    fun bowlAnchor(
+        anchors: Anchors,
+        bounds: HabitatBounds,
+        world: HabitatWorld,
+    ): Position =
+        world.bowlPosition?.let { bp ->
+            Position(x = bp.x.coerceIn(bounds.minX, bounds.maxX), y = anchors.bowl.y)
+        } ?: anchors.bowl
 
     /**
      * Pure forward step. Given the current [b]ehavior, produces the next one.
@@ -161,7 +178,7 @@ object CatBehaviorRules {
             when {
                 mood == Mood.SLEEPY -> anchors.bed
                 world.toy != null -> world.toy
-                mood == Mood.HUNGRY && world.bowlFilled -> anchors.bowl
+                mood == Mood.HUNGRY && world.bowlFilled -> bowlAnchor(anchors, bounds, world)
                 else -> null
             }
 
@@ -198,7 +215,7 @@ object CatBehaviorRules {
                     target = effectiveTarget,
                     facing = directionOf(b.position, effectiveTarget),
                 )
-            effectiveTarget == anchors.bowl && world.bowlFilled ->
+            effectiveTarget == bowlAnchor(anchors, bounds, world) && world.bowlFilled ->
                 b.copy(
                     state = CatState.Eating,
                     position = effectiveTarget,
