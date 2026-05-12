@@ -90,6 +90,11 @@ object CatBehaviorRules {
      * (i.e., before the screen has measured). The y is taken from `anchors.bowl`
      * so the cat's feet remain on the floor anchor line regardless of the
      * bowl's rendered y.
+     *
+     * Mirrors `com.pocketpets.app.ui.pet.bowlAnchorFor` in the ui layer. The
+     * two helpers are intentionally duplicated because the domain layer is
+     * pure Kotlin and cannot depend on ui-layer helpers (see CLAUDE.md
+     * layering). Keep both in sync when the clamp/fallback shape changes.
      */
     fun bowlAnchor(
         anchors: Anchors,
@@ -171,6 +176,12 @@ object CatBehaviorRules {
             )
         }
 
+        // Cache the bowl anchor once per tick. Used by both the target-priority
+        // dispatch below and the arrival equality check further down so the
+        // "did we arrive at the bowl?" comparison reads the same value as the
+        // target we picked, making the equality semantics explicit.
+        val bAnchor = bowlAnchor(anchors, bounds, world)
+
         // Target priority: SLEEPY bed > thrown toy > HUNGRY+filled bowl > nothing.
         // SLEEPY beats toy because going to sleep is a stronger drive than play;
         // toy beats a hungry cat so a thrown toy redirects mid-walk to the bowl.
@@ -178,7 +189,7 @@ object CatBehaviorRules {
             when {
                 mood == Mood.SLEEPY -> anchors.bed
                 world.toy != null -> world.toy
-                mood == Mood.HUNGRY && world.bowlFilled -> bowlAnchor(anchors, bounds, world)
+                mood == Mood.HUNGRY && world.bowlFilled -> bAnchor
                 else -> null
             }
 
@@ -215,7 +226,7 @@ object CatBehaviorRules {
                     target = effectiveTarget,
                     facing = directionOf(b.position, effectiveTarget),
                 )
-            effectiveTarget == bowlAnchor(anchors, bounds, world) && world.bowlFilled ->
+            effectiveTarget == bAnchor && world.bowlFilled ->
                 b.copy(
                     state = CatState.Eating,
                     position = effectiveTarget,

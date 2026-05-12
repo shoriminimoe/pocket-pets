@@ -541,6 +541,28 @@ class CatBehaviorRulesTest {
     }
 
     @Test
+    fun `hungry cat falls back to anchors bowl when world bowlPosition is null`() {
+        // Early-measurement case: the bowl has been filled but the screen
+        // hasn't reported its rendered position yet (world.bowlPosition is
+        // null), so bowlAnchor falls back to the cached anchors.bowl.
+        val world = HabitatWorld(bowlFilled = true, bowlPosition = null)
+        val b = behavior(state = CatState.Idle, x = 100f, y = 50f, targetX = 100f, targetY = 50f)
+        val out =
+            CatBehaviorRules.tick(
+                b,
+                t0,
+                0.016f,
+                Mood.HUNGRY,
+                bounds,
+                anchors,
+                Random(0),
+                world = world,
+            )
+        assertThat(out.state).isEqualTo(CatState.Walking)
+        assertThat(out.target).isEqualTo(anchors.bowl)
+    }
+
+    @Test
     fun `cat arriving at world bowlPosition transitions to Eating`() {
         val world = HabitatWorld(bowlFilled = true, bowlPosition = Position(150f, 60f))
         val targetX = 150f
