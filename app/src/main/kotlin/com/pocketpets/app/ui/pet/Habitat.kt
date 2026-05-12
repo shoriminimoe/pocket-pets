@@ -10,25 +10,30 @@ data class Habitat(
     val anchors: Anchors,
 )
 
-private const val FLOOR_TOP_FRACTION = 0.40f
-private const val FLOOR_BOTTOM_FRACTION = 0.85f
 private const val ANCHOR_INSET_DP = 24f
 private const val ANCHOR_BOTTOM_PADDING_DP = 16f
 
 /**
  * Builds the playable [HabitatBounds] and navigation [Anchors] for a screen of
  * [widthDp] × [heightDp] when the rendered cat sprite occupies a [spriteDp]-sided
- * box. The cat's position is its sprite's top-left corner, so [HabitatBounds.maxX]
- * is `widthDp - spriteDp` (and analogously for Y) — that's what keeps the full
- * sprite on-screen.
+ * box and the caller has measured [topReservedDp] of overlay above the play area
+ * (top bar + stat chips) and [bottomReservedDp] of overlay below (inventory tray).
+ *
+ * The cat's position is its sprite's top-left corner, so [HabitatBounds.maxX] is
+ * `widthDp - spriteDp` (and analogously for Y) — that's what keeps the full
+ * sprite on-screen. `coerceAtLeast` on both edges keeps the [HabitatBounds.init]
+ * `minX < maxX` / `minY < maxY` invariants alive when the screen is too small
+ * or the overlays too tall to hold the sprite cleanly.
  */
 fun computeHabitat(
     widthDp: Float,
     heightDp: Float,
+    topReservedDp: Float,
+    bottomReservedDp: Float,
     spriteDp: Float,
 ): Habitat {
-    val floorTopDp = heightDp * FLOOR_TOP_FRACTION
-    val floorBottomDp = heightDp * FLOOR_BOTTOM_FRACTION
+    val floorTopDp = topReservedDp
+    val floorBottomDp = heightDp - bottomReservedDp
     val maxX = (widthDp - spriteDp).coerceAtLeast(1f)
     val maxY = (floorBottomDp - spriteDp).coerceAtLeast(floorTopDp + 1f)
     val bounds = HabitatBounds(minX = 0f, minY = floorTopDp, maxX = maxX, maxY = maxY)

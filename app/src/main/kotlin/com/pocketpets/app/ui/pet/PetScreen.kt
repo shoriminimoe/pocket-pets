@@ -49,12 +49,12 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import com.pocketpets.app.R
 import com.pocketpets.app.domain.GrowthStage
 import com.pocketpets.app.domain.Pet
 import com.pocketpets.app.domain.behavior.CatState
-import com.pocketpets.app.domain.behavior.HabitatBounds
 import com.pocketpets.app.domain.behavior.Position
 import com.pocketpets.app.ui.inventory.DpRect
 import com.pocketpets.app.ui.inventory.DragController
@@ -69,12 +69,12 @@ private fun poopRectFor(
     i: Int,
     offsets: List<Int>,
     screenWidthDp: Float,
-    screenHeightDp: Float,
+    playAreaBottom: Float,
 ): DpRect {
     val sizeDp = 48f
     val centerX = screenWidthDp / 2f + offsets[i] - sizeDp / 2f
-    val bottomMargin = (110 + i * 6).toFloat()
-    val top = screenHeightDp - bottomMargin - sizeDp
+    val bottomMargin = 16f + i * 6f
+    val top = playAreaBottom - bottomMargin - sizeDp
     return DpRect(
         left = centerX,
         top = top,
@@ -94,9 +94,10 @@ fun PetScreen(
     val pet = state.pet
 
     val density = LocalDensity.current
-    var habitatBoundsState by remember { mutableStateOf<HabitatBounds?>(null) }
     var screenWidthDp by remember { mutableFloatStateOf(0f) }
     var screenHeightDp by remember { mutableFloatStateOf(0f) }
+    var topReservedDp by remember { mutableFloatStateOf(0f) }
+    var bottomReservedDp by remember { mutableFloatStateOf(0f) }
     val dragController = remember { DragController() }
     val slotRects = remember { mutableStateMapOf<Item, DpRect>() }
 
@@ -105,10 +106,22 @@ fun PetScreen(
     // must reserve that much room on the right and bottom — otherwise the
     // sprite's box renders past the play area when the cat sits at maxX/maxY.
     val spriteDp = stageSpriteSize(state.stage).value
-    LaunchedEffect(screenWidthDp, screenHeightDp, spriteDp) {
-        if (screenWidthDp <= 0f || screenHeightDp <= 0f) return@LaunchedEffect
-        val habitat = computeHabitat(screenWidthDp, screenHeightDp, spriteDp)
-        habitatBoundsState = habitat.bounds
+    LaunchedEffect(screenWidthDp, screenHeightDp, topReservedDp, bottomReservedDp, spriteDp) {
+        if (screenWidthDp <= 0f ||
+            screenHeightDp <= 0f ||
+            topReservedDp <= 0f ||
+            bottomReservedDp <= 0f
+        ) {
+            return@LaunchedEffect
+        }
+        val habitat =
+            computeHabitat(
+                widthDp = screenWidthDp,
+                heightDp = screenHeightDp,
+                topReservedDp = topReservedDp,
+                bottomReservedDp = bottomReservedDp,
+                spriteDp = spriteDp,
+            )
         vm.setHabitat(habitat.bounds, habitat.anchors)
     }
 
@@ -131,39 +144,48 @@ fun PetScreen(
             contentScale = ContentScale.FillBounds,
         )
 
-        // Top bar
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(8.dp),
-            verticalAlignment = Alignment.CenterVertically,
+        // Top overlays: top bar + stat chips. Grouped into a single Column so
+        // onSizeChanged reports the combined height we reserve at the top of the
+        // play area.
+        Column(
+            modifier =
+                Modifier
+                    .align(Alignment.TopStart)
+                    .fillMaxWidth()
+                    .onSizeChanged { sizePx ->
+                        with(density) {
+                            topReservedDp = sizePx.height.toDp().value
+                        }
+                    },
         ) {
-            IconButton(onClick = onOpenSelector) {
-                Icon(Icons.Default.Menu, contentDescription = "Switch pet")
-            }
-            Spacer(Modifier.width(8.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(pet?.name ?: "—")
-                if (pet != null) {
-                    Text(stageLabel(state.stage), color = Color(0xFF555555))
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                IconButton(onClick = onOpenSelector) {
+                    Icon(Icons.Default.Menu, contentDescription = "Switch pet")
+                }
+                Spacer(Modifier.width(8.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(pet?.name ?: "—")
+                    if (pet != null) {
+                        Text(stageLabel(state.stage), color = Color(0xFF555555))
+                    }
+                }
+                IconButton(onClick = onOpenSettings) {
+                    Icon(Icons.Default.Settings, contentDescription = "Settings")
                 }
             }
-            IconButton(onClick = onOpenSettings) {
-                Icon(Icons.Default.Settings, contentDescription = "Settings")
-            }
-        }
-
-        // Stat chips just under the top bar
-        if (pet != null) {
-            Row(
-                modifier =
-                    Modifier
-                        .padding(top = 60.dp, start = 8.dp, end = 8.dp)
-                        .fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-            ) {
-                StatChip("🍗", pet.stats.hunger, Color(0xFFE6843D))
-                StatChip("🛁", pet.stats.cleanliness, Color(0xFF7AB7E8))
-                StatChip("💗", pet.stats.happiness, Color(0xFFE86A8D))
-                StatChip("⚡", pet.stats.energy, Color(0xFFE8C13D))
+            if (pet != null) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(start = 8.dp, end = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                ) {
+                    StatChip("🍗", pet.stats.hunger, Color(0xFFE6843D))
+                    StatChip("🛁", pet.stats.cleanliness, Color(0xFF7AB7E8))
+                    StatChip("💗", pet.stats.happiness, Color(0xFFE86A8D))
+                    StatChip("⚡", pet.stats.energy, Color(0xFFE8C13D))
+                }
             }
         }
 
@@ -217,60 +239,89 @@ fun PetScreen(
         }
 
         if (pet != null) {
-            // Food bowl decor sits at the bottom-left. Switches to bowl_full when filled.
-            Image(
-                painter =
-                    painterResource(
-                        if (state.world.bowlFilled) R.drawable.bowl_full else R.drawable.bowl,
-                    ),
-                contentDescription = null,
-                modifier =
-                    Modifier
-                        .align(Alignment.BottomStart)
-                        .padding(start = 24.dp, bottom = 100.dp)
-                        .size(width = 64.dp, height = 32.dp),
-            )
-
-            // Toy on the floor when present
-            state.world.toy?.let { toyPos ->
-                Image(
-                    painter = painterResource(R.drawable.toy),
-                    contentDescription = null,
-                    modifier =
-                        Modifier
-                            .offset(x = toyPos.x.dp, y = toyPos.y.dp)
-                            .size(48.dp),
-                )
-            }
-
-            // Poops on the floor — deterministic per pet id
+            // Poop layout offsets are deterministic per pet id. Hoisted out of the
+            // bottomReservedDp gate below so the tray's onDragEnd can still resolve
+            // poop drop rects via poopRectFor before any decor renders.
             val poopOffsets =
                 remember(pet.id) {
                     val rng = Random(pet.id)
                     List(Pet.MAX_POOPS) { rng.nextInt(-100, 100) }
                 }
-            repeat(pet.poopCount) { i ->
-                val xOffset = poopOffsets[i]
+
+            // Decor (bowl, toy, poops) anchors to playAreaBottom. Until the tray's
+            // onSizeChanged fires, bottomReservedDp is 0 and playAreaBottom would equal
+            // screenHeightDp — drawing the decor behind the not-yet-measured tray for
+            // one frame. Gate the decor block on bottomReservedDp so the flash is gone.
+            if (bottomReservedDp > 0f) {
+                val playAreaBottom = screenHeightDp - bottomReservedDp
+                // Food bowl decor sits at the bottom-left. Switches to bowl_full when filled.
                 Image(
-                    painter = painterResource(R.drawable.poop),
+                    painter =
+                        painterResource(
+                            if (state.world.bowlFilled) R.drawable.bowl_full else R.drawable.bowl,
+                        ),
                     contentDescription = null,
                     modifier =
                         Modifier
-                            .align(Alignment.BottomCenter)
-                            .padding(bottom = (110 + i * 6).dp)
-                            .offset(x = xOffset.dp)
-                            .size(48.dp),
+                            .offset {
+                                with(density) {
+                                    IntOffset(
+                                        x = 24.dp.roundToPx(),
+                                        y = (playAreaBottom - 32f - 16f).dp.roundToPx(),
+                                    )
+                                }
+                            }.size(width = 64.dp, height = 32.dp),
                 )
+
+                // Toy on the floor when present
+                state.world.toy?.let { toyPos ->
+                    Image(
+                        painter = painterResource(R.drawable.toy),
+                        contentDescription = null,
+                        modifier =
+                            Modifier
+                                .offset(x = toyPos.x.dp, y = toyPos.y.dp)
+                                .size(48.dp),
+                    )
+                }
+
+                // Poops on the floor
+                repeat(pet.poopCount) { i ->
+                    val xOffset = poopOffsets[i]
+                    val sizeDp = 48f
+                    val bottomMargin = 16f + i * 6f
+                    val xDp = screenWidthDp / 2f + xOffset - sizeDp / 2f
+                    val yDp = playAreaBottom - bottomMargin - sizeDp
+                    Image(
+                        painter = painterResource(R.drawable.poop),
+                        contentDescription = null,
+                        modifier =
+                            Modifier
+                                .offset {
+                                    with(density) {
+                                        IntOffset(
+                                            x = xDp.dp.roundToPx(),
+                                            y = yDp.dp.roundToPx(),
+                                        )
+                                    }
+                                }.size(sizeDp.dp),
+                    )
+                }
             }
 
             // Inventory tray with drag-gesture handler
             var trayRootOffsetPx by remember { mutableStateOf(Offset.Zero) }
+
             Box(
                 modifier =
                     Modifier
                         .align(Alignment.BottomCenter)
                         .fillMaxWidth()
-                        .onGloballyPositioned { coords ->
+                        .onSizeChanged { sizePx ->
+                            with(density) {
+                                bottomReservedDp = sizePx.height.toDp().value
+                            }
+                        }.onGloballyPositioned { coords ->
                             trayRootOffsetPx = coords.positionInRoot()
                         }.pointerInput(pet.id) {
                             awaitEachGesture {
@@ -310,17 +361,31 @@ fun PetScreen(
 
                                 val ended = dragController.end()
                                 if (!lifted || ended == null) return@awaitEachGesture
-                                val bounds = habitatBoundsState ?: return@awaitEachGesture
+                                if (screenWidthDp <= 0f ||
+                                    screenHeightDp <= 0f ||
+                                    topReservedDp <= 0f ||
+                                    bottomReservedDp <= 0f
+                                ) {
+                                    return@awaitEachGesture
+                                }
+                                val playAreaBottomLocal = screenHeightDp - bottomReservedDp
+                                val playAreaRect =
+                                    DpRect(
+                                        left = 0f,
+                                        top = topReservedDp,
+                                        right = screenWidthDp,
+                                        bottom = playAreaBottomLocal,
+                                    )
                                 val poopRects =
                                     (0 until pet.poopCount).map { i ->
-                                        poopRectFor(i, poopOffsets, screenWidthDp, screenHeightDp)
+                                        poopRectFor(i, poopOffsets, screenWidthDp, playAreaBottomLocal)
                                     }
                                 val bowlRect =
                                     DpRect(
                                         left = 24f,
-                                        top = screenHeightDp - 132f,
+                                        top = playAreaBottomLocal - 32f - 16f,
                                         right = 24f + 64f,
-                                        bottom = screenHeightDp - 132f + 32f,
+                                        bottom = playAreaBottomLocal - 16f,
                                     )
                                 val catBehavior = state.behavior
                                 val catRect =
@@ -339,7 +404,7 @@ fun PetScreen(
                                     dropTargetAt(
                                         position = ended.position,
                                         item = ended.item,
-                                        bounds = bounds,
+                                        playAreaRect = playAreaRect,
                                         bowlRect = bowlRect,
                                         poopRects = poopRects,
                                         catRect = catRect,
