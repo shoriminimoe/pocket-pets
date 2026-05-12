@@ -7,10 +7,14 @@ import org.junit.Test
 class DropTargetsTest {
     private val playAreaRect = DpRect(0f, 0f, 200f, 200f)
     private val bowlRect = DpRect(20f, 160f, 84f, 192f)
+
+    // Poops are positioned away from the bowl (right side of the play area) so they
+    // don't fall inside the expanded food drop zone — keeps the "food on a poop is
+    // null" assertion semantic instead of accidentally claiming the bowl.
     private val poopRects =
         listOf(
-            DpRect(80f, 100f, 128f, 148f),
-            DpRect(120f, 100f, 168f, 148f),
+            DpRect(140f, 50f, 168f, 78f),
+            DpRect(160f, 50f, 188f, 78f),
         )
     private val catRect = DpRect(60f, 60f, 140f, 140f)
 
@@ -29,6 +33,45 @@ class DropTargetsTest {
     @Test
     fun `food off the bowl resolves to null`() {
         assertThat(resolve(Item.Food, 100f, 50f)).isNull()
+    }
+
+    @Test
+    fun `food just outside bowl sprite but in the expanded floor band hits the bowl`() {
+        // The visible bowl sprite is bowlRect (20..84, 160..192). Drops slightly to the
+        // right (16dp gap is well within the expanded zone) or just above the bowl
+        // top edge should now count as hitting the bowl, even though they're outside
+        // the sprite rect. This is the fix for #29 — the 64x32dp sprite is too small
+        // a target to reliably hit with a finger drop.
+        assertThat(resolve(Item.Food, bowlRect.right + 16f, bowlRect.top + 8f))
+            .isEqualTo(DropTarget.Bowl)
+        assertThat(resolve(Item.Food, bowlRect.left + 32f, bowlRect.top - 24f))
+            .isEqualTo(DropTarget.Bowl)
+    }
+
+    @Test
+    fun `food in the floor band below the bowl still hits the bowl`() {
+        // Drops that land between the bowl and the inventory tray (i.e. in the
+        // visible floor area below the bowl) should also count, since the user is
+        // clearly aiming at the bowl when releasing food in that floor band.
+        val (bx, _) = bowlRect.center()
+        assertThat(resolve(Item.Food, bx, playAreaRect.bottom - 1f))
+            .isEqualTo(DropTarget.Bowl)
+    }
+
+    @Test
+    fun `food well above the bowl beyond the slack still resolves to null`() {
+        // Drops far above the bowl (well outside any reasonable slack) must not
+        // claim the bowl — this keeps the "far away" rejection behavior intact.
+        val (bx, _) = bowlRect.center()
+        assertThat(resolve(Item.Food, bx, 10f)).isNull()
+    }
+
+    @Test
+    fun `food horizontally far from the bowl still resolves to null`() {
+        // A drop way to the right of the bowl (well outside the horizontal band)
+        // must not claim the bowl.
+        assertThat(resolve(Item.Food, playAreaRect.right - 1f, bowlRect.top + 8f))
+            .isNull()
     }
 
     @Test
