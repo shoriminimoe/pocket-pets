@@ -289,10 +289,16 @@ fun PetScreen(
                                 detectDragGesturesAfterLongPress(
                                     onDrag = { change, dragAmountPx ->
                                         change.consume()
+                                        // Same fallback chain as the rendered bowlPos above:
+                                        // if the LaunchedEffect hasn't populated
+                                        // defaultBowlPositionState yet, the rendered bowl uses
+                                        // the inline (24, floor) fallback — accept the first
+                                        // drag stroke from that same starting point instead of
+                                        // silently dropping it.
                                         val current =
                                             vm.state.value.world.bowlPosition
                                                 ?: defaultBowlPositionState
-                                                ?: return@detectDragGesturesAfterLongPress
+                                                ?: Position(24f, playAreaBottom - BOWL_HEIGHT_DP - 16f)
                                         val dx = with(density) { dragAmountPx.x.toDp().value }
                                         val dy = with(density) { dragAmountPx.y.toDp().value }
                                         vm.onBowlMoved(
