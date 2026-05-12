@@ -40,6 +40,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -239,6 +240,9 @@ fun PetScreen(
             // width via onSizeChanged, then computeSpeechBubblePlacement clamps
             // its X within the screen and re-anchors the tail toward the cat —
             // so it can't run off the left/right edges when the cat is near one.
+            // It stays in composition while unmeasured (alpha 0) so onSizeChanged
+            // fires; otherwise the first frame would draw the tail at the bubble's
+            // left corner before the clamp settles.
             val spriteDpValue = spriteSize.value
             var bubbleWidthDp by remember { mutableFloatStateOf(0f) }
             val placement =
@@ -256,12 +260,14 @@ fun PetScreen(
                         )
                     }
                 }
+            val measured = placement != null
             val bubbleX = placement?.bubbleX ?: behavior.position.x
             val tailDp = placement?.tailX?.dp ?: (bubbleWidthDp / 2f).dp
             Box(
                 modifier =
                     Modifier
                         .offset(x = bubbleX.dp, y = (behavior.position.y - 64f).dp)
+                        .alpha(if (measured) 1f else 0f)
                         .onSizeChanged { sizePx ->
                             with(density) {
                                 bubbleWidthDp = sizePx.width.toDp().value

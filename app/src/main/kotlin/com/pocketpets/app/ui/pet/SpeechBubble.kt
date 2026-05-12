@@ -121,9 +121,9 @@ const val SPEECH_BUBBLE_TAIL_MARGIN_DP = 16f
 fun SpeechBubble(
     phrase: Phrase?,
     onDismiss: () -> Unit,
+    tailX: Dp,
     modifier: Modifier = Modifier,
     autoDismissMs: Long = 4000,
-    tailX: Dp = TailWidthDp,
 ) {
     var translated by remember(phrase) { mutableStateOf(false) }
     var paused by remember(phrase) { mutableStateOf(false) }
