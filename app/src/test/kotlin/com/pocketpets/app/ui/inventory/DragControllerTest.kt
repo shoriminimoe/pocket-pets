@@ -51,4 +51,12 @@ class DragControllerTest {
         val c = DragController()
         assertThat(c.end()).isNull()
     }
+
+    @Test
+    fun `previewCenterFor lifts the icon centre above the finger`() {
+        val center = previewCenterFor(Position(200f, 800f))
+        // y-axis: positive downward; preview is lifted, so y must be smaller than finger
+        assertThat(center.x).isEqualTo(200f)
+        assertThat(center.y).isEqualTo(736f) // 800 - 64
+    }
 }
