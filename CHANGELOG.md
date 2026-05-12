@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.4.0](https://github.com/shoriminimoe/pocket-pets/compare/v0.3.0...v0.4.0) (2026-05-12)
+
+
+### Features
+
+* brush grooming tool raises cleanliness ([aded146](https://github.com/shoriminimoe/pocket-pets/commit/aded146677d2db7d999f7f04251a49d3b8fa6965))
+* brush grooming tool raises cleanliness via drag-onto-cat ([4ddbcd4](https://github.com/shoriminimoe/pocket-pets/commit/4ddbcd4f87f1e74939dc8f9b782ee309bb273cf9)), closes [#13](https://github.com/shoriminimoe/pocket-pets/issues/13)
+* draggable food bowl ([#14](https://github.com/shoriminimoe/pocket-pets/issues/14)) ([0e3c045](https://github.com/shoriminimoe/pocket-pets/commit/0e3c045c41db57da5dc01d7497a2bb8546cd201f))
+* draggable food bowl persists across recomposition ([#14](https://github.com/shoriminimoe/pocket-pets/issues/14)) ([c5e23f3](https://github.com/shoriminimoe/pocket-pets/commit/c5e23f39177d3514589f197f4cf07ccf0ff40897))
+
+
+### Bug Fixes
+
+* bowl drag uses same fallback chain as rendered bowl ([3edcd13](https://github.com/shoriminimoe/pocket-pets/commit/3edcd13ead18a7598f1e6f0733b80d6646d66c02))
+* gate decor render on bottomReservedDp to prevent first-frame flash ([046af2a](https://github.com/shoriminimoe/pocket-pets/commit/046af2a9afb9b323b2c0931b016205610799477c))
+* inventory tools pick up immediately on touch-down ([a9072a8](https://github.com/shoriminimoe/pocket-pets/commit/a9072a87fc916dd73690bebb8fb043d4c9a6ecfe))
+* inventory tools pick up immediately on touch-down ([a9e714f](https://github.com/shoriminimoe/pocket-pets/commit/a9e714f3767f61065a51ad2ac9601b6e15e38521))
+* keep cat sprite fully inside the play area ([#11](https://github.com/shoriminimoe/pocket-pets/issues/11)) ([e6637eb](https://github.com/shoriminimoe/pocket-pets/commit/e6637eb8573598631d28e81fc38703fe845c6bac))
+* keep cat sprite fully inside the play area ([#11](https://github.com/shoriminimoe/pocket-pets/issues/11)) ([60cb835](https://github.com/shoriminimoe/pocket-pets/commit/60cb835acb821633418c7c1fa9484e5dd0136e6c))
+* PetScreen anchors decor + drops to measured tray height ([#12](https://github.com/shoriminimoe/pocket-pets/issues/12)) ([5ea105c](https://github.com/shoriminimoe/pocket-pets/commit/5ea105cf0f03e61debfe3e5c4529e4859b7d0ae8))
+
 ## [0.3.0](https://github.com/shoriminimoe/pocket-pets/compare/v0.2.0...v0.3.0) (2026-05-10)
 
 
