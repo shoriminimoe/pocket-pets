@@ -1,6 +1,7 @@
 package com.pocketpets.app.ui.pet
 
 import com.google.common.truth.Truth.assertThat
+import com.pocketpets.app.domain.behavior.Position
 import org.junit.Test
 
 class HabitatTest {
@@ -110,5 +111,46 @@ class HabitatTest {
         assertThat(bowl.x).isAtMost(habitat.bounds.maxX)
         assertThat(bowl.y).isAtLeast(habitat.bounds.minY)
         assertThat(bowl.y).isAtMost(habitat.bounds.maxY)
+    }
+
+    @Test
+    fun `default bowl position sits inside its clamp bounds`() {
+        val habitat = computeHabitat(400f, 600f, typicalTop, typicalBottom, 256f)
+        val pos = habitat.defaultBowlPosition
+        val bb = habitat.bowlClampBounds
+        assertThat(pos.x).isAtLeast(bb.minX)
+        assertThat(pos.x).isAtMost(bb.maxX)
+        assertThat(pos.y).isAtLeast(bb.minY)
+        assertThat(pos.y).isAtMost(bb.maxY)
+    }
+
+    @Test
+    fun `bowl clamp bounds reserve room for bowl footprint`() {
+        val habitat = computeHabitat(400f, 600f, typicalTop, typicalBottom, 256f)
+        assertThat(habitat.bowlClampBounds.maxX + BOWL_WIDTH_DP).isAtMost(400f)
+        // Floor bottom = 600 - 90 = 510. Bowl bottom edge must end at/above the floor.
+        assertThat(habitat.bowlClampBounds.maxY + BOWL_HEIGHT_DP).isAtMost(510f)
+    }
+
+    @Test
+    fun `bowl clamp bounds are wider than cat bounds because bowl is smaller`() {
+        val habitat = computeHabitat(400f, 600f, typicalTop, typicalBottom, 256f)
+        assertThat(habitat.bowlClampBounds.maxX).isGreaterThan(habitat.bounds.maxX)
+        assertThat(habitat.bowlClampBounds.maxY).isGreaterThan(habitat.bounds.maxY)
+    }
+
+    @Test
+    fun `bowlAnchorFor mirrors bowl x and keeps floor y`() {
+        val habitat = computeHabitat(400f, 600f, typicalTop, typicalBottom, 256f)
+        val anchor = bowlAnchorFor(Position(100f, 400f), habitat.bounds, habitat.anchors.bowl)
+        assertThat(anchor.x).isEqualTo(100f)
+        assertThat(anchor.y).isEqualTo(habitat.anchors.bowl.y)
+    }
+
+    @Test
+    fun `bowlAnchorFor clamps x to cat bounds`() {
+        val habitat = computeHabitat(400f, 600f, typicalTop, typicalBottom, 256f)
+        val tooFarRight = bowlAnchorFor(Position(999f, 400f), habitat.bounds, habitat.anchors.bowl)
+        assertThat(tooFarRight.x).isEqualTo(habitat.bounds.maxX)
     }
 }

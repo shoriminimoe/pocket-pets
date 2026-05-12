@@ -202,6 +202,116 @@ class PetViewModelTest {
             }
         }
 
+    @Test fun `onBowlMoved updates world bowlPosition clamped to bowl bounds`() =
+        runTest {
+            val testScope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
+            val repo = FakeRepo(samplePet())
+            val vm = newVm(repo, testScope)
+            try {
+                vm.state.first { it.pet != null }
+                vm.setHabitat(
+                    bounds =
+                        com.pocketpets.app.domain.behavior
+                            .HabitatBounds(0f, 0f, 240f, 200f),
+                    anchors =
+                        com.pocketpets.app.domain.behavior.Anchors(
+                            bed =
+                                com.pocketpets.app.domain.behavior
+                                    .Position(180f, 160f),
+                            bowl =
+                                com.pocketpets.app.domain.behavior
+                                    .Position(40f, 160f),
+                        ),
+                    bowlBounds =
+                        com.pocketpets.app.domain.behavior
+                            .HabitatBounds(0f, 0f, 336f, 268f),
+                )
+                vm.onBowlMoved(
+                    com.pocketpets.app.domain.behavior
+                        .Position(100f, 120f),
+                )
+                val state = vm.state.first { it.world.bowlPosition != null }
+                assertThat(state.world.bowlPosition)
+                    .isEqualTo(
+                        com.pocketpets.app.domain.behavior
+                            .Position(100f, 120f),
+                    )
+            } finally {
+                testScope.cancel()
+            }
+        }
+
+    @Test fun `onBowlMoved past bowl bounds snaps to edge`() =
+        runTest {
+            val testScope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
+            val repo = FakeRepo(samplePet())
+            val vm = newVm(repo, testScope)
+            try {
+                vm.state.first { it.pet != null }
+                vm.setHabitat(
+                    bounds =
+                        com.pocketpets.app.domain.behavior
+                            .HabitatBounds(0f, 0f, 240f, 200f),
+                    anchors =
+                        com.pocketpets.app.domain.behavior.Anchors(
+                            bed =
+                                com.pocketpets.app.domain.behavior
+                                    .Position(180f, 160f),
+                            bowl =
+                                com.pocketpets.app.domain.behavior
+                                    .Position(40f, 160f),
+                        ),
+                    bowlBounds =
+                        com.pocketpets.app.domain.behavior
+                            .HabitatBounds(0f, 0f, 336f, 268f),
+                )
+                vm.onBowlMoved(
+                    com.pocketpets.app.domain.behavior
+                        .Position(9999f, 9999f),
+                )
+                val state = vm.state.first { it.world.bowlPosition != null }
+                assertThat(state.world.bowlPosition?.x).isEqualTo(336f)
+                assertThat(state.world.bowlPosition?.y).isEqualTo(268f)
+            } finally {
+                testScope.cancel()
+            }
+        }
+
+    @Test fun `setHabitat materialises default bowl position once`() =
+        runTest {
+            val testScope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
+            val repo = FakeRepo(samplePet())
+            val vm = newVm(repo, testScope)
+            try {
+                vm.state.first { it.pet != null }
+                val defaultPos =
+                    com.pocketpets.app.domain.behavior
+                        .Position(24f, 468f)
+                vm.setHabitat(
+                    bounds =
+                        com.pocketpets.app.domain.behavior
+                            .HabitatBounds(0f, 0f, 240f, 200f),
+                    anchors =
+                        com.pocketpets.app.domain.behavior.Anchors(
+                            bed =
+                                com.pocketpets.app.domain.behavior
+                                    .Position(180f, 160f),
+                            bowl =
+                                com.pocketpets.app.domain.behavior
+                                    .Position(40f, 160f),
+                        ),
+                    bowlBounds =
+                        com.pocketpets.app.domain.behavior
+                            .HabitatBounds(0f, 0f, 336f, 568f),
+                    defaultBowlPosition = defaultPos,
+                )
+                val state = vm.state.first { it.world.bowlPosition != null }
+                assertThat(state.world.bowlPosition).isEqualTo(defaultPos)
+            } finally {
+                testScope.cancel()
+            }
+        }
+
     @Test fun `onCatHeld calls repo pet`() =
         runTest {
             val testScope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)

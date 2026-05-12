@@ -8,10 +8,16 @@ import com.pocketpets.app.domain.behavior.Position
 data class Habitat(
     val bounds: HabitatBounds,
     val anchors: Anchors,
+    val defaultBowlPosition: Position,
+    val bowlClampBounds: HabitatBounds,
 )
 
+const val BOWL_WIDTH_DP = 64f
+const val BOWL_HEIGHT_DP = 32f
 private const val ANCHOR_INSET_DP = 24f
 private const val ANCHOR_BOTTOM_PADDING_DP = 16f
+private const val BOWL_DEFAULT_LEFT_DP = 24f
+private const val BOWL_DEFAULT_FLOOR_GAP_DP = 16f
 
 /**
  * Builds the playable [HabitatBounds] and navigation [Anchors] for a screen of
@@ -53,5 +59,41 @@ fun computeHabitat(
                     y = anchorY,
                 ),
         )
-    return Habitat(bounds, anchors)
+    val defaultBowlPosition =
+        Position(
+            x = BOWL_DEFAULT_LEFT_DP,
+            y = floorBottomDp - BOWL_HEIGHT_DP - BOWL_DEFAULT_FLOOR_GAP_DP,
+        )
+    val bowlClampBounds = computeBowlBounds(widthDp, floorTopDp, floorBottomDp)
+    return Habitat(bounds, anchors, defaultBowlPosition, bowlClampBounds)
 }
+
+/**
+ * Bounds the bowl's top-left dp position is clamped against. Mirrors how
+ * [HabitatBounds] reserves room for the cat sprite, but with the bowl's
+ * own (64×32 dp) footprint instead.
+ */
+fun computeBowlBounds(
+    widthDp: Float,
+    floorTopDp: Float,
+    floorBottomDp: Float,
+): HabitatBounds {
+    val maxX = (widthDp - BOWL_WIDTH_DP).coerceAtLeast(1f)
+    val maxY = (floorBottomDp - BOWL_HEIGHT_DP).coerceAtLeast(floorTopDp + 1f)
+    return HabitatBounds(minX = 0f, minY = floorTopDp, maxX = maxX, maxY = maxY)
+}
+
+/**
+ * Cat destination derived from a bowl top-left in dp. The cat's sprite
+ * top-left ends up sharing the bowl's x but sits on the floor anchor line,
+ * so the cat appears to stand next to the bowl with its feet at floor level.
+ */
+fun bowlAnchorFor(
+    bowlPosition: Position,
+    bounds: HabitatBounds,
+    fallback: Position,
+): Position =
+    Position(
+        x = bowlPosition.x.coerceIn(bounds.minX, bounds.maxX),
+        y = fallback.y,
+    )

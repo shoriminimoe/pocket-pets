@@ -57,10 +57,15 @@ class PetViewModel(
             bed = Position(180f, 160f),
             bowl = Position(40f, 160f),
         )
+    private val defaultBowlBounds = HabitatBounds(0f, 0f, 176f, 168f)
 
     @Volatile private var habitatBounds: HabitatBounds = defaultBounds
 
     @Volatile private var habitatAnchors: Anchors = defaultAnchors
+
+    @Volatile private var bowlClampBounds: HabitatBounds = defaultBowlBounds
+
+    @Volatile private var bowlAnchorYFloor: Float = defaultAnchors.bowl.y
 
     @Volatile private var currentMood: Mood = Mood.IDLE
 
@@ -171,9 +176,40 @@ class PetViewModel(
     fun setHabitat(
         bounds: HabitatBounds,
         anchors: Anchors,
+        bowlBounds: HabitatBounds = bounds,
+        defaultBowlPosition: Position? = null,
     ) {
         habitatBounds = bounds
-        habitatAnchors = anchors
+        bowlClampBounds = bowlBounds
+        bowlAnchorYFloor = anchors.bowl.y
+        // Initialise the bowl on first measurement; on later habitat changes
+        // re-clamp it so a freshly-rotated screen can't leave the bowl off-area.
+        val current = _world.value
+        val bowlPos =
+            (current.bowlPosition ?: defaultBowlPosition)?.let { bowlBounds.clamp(it) }
+        habitatAnchors =
+            if (bowlPos != null) {
+                anchors.copy(bowl = bowlAnchorFor(bowlPos, bounds, anchors.bowl))
+            } else {
+                anchors
+            }
+        if (bowlPos != null && bowlPos != current.bowlPosition) {
+            _world.value = current.copy(bowlPosition = bowlPos)
+        }
+    }
+
+    fun onBowlMoved(position: Position) {
+        val clamped = bowlClampBounds.clamp(position)
+        _world.value = _world.value.copy(bowlPosition = clamped)
+        habitatAnchors =
+            habitatAnchors.copy(
+                bowl =
+                    bowlAnchorFor(
+                        clamped,
+                        habitatBounds,
+                        Position(habitatAnchors.bowl.x, bowlAnchorYFloor),
+                    ),
+            )
     }
 
     fun feed() = withActive { repo.feed(it) }

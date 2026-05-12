@@ -10,6 +10,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -94,6 +95,7 @@ fun PetScreen(
     val pet = state.pet
 
     val density = LocalDensity.current
+    var defaultBowlPositionState by remember { mutableStateOf<Position?>(null) }
     var screenWidthDp by remember { mutableFloatStateOf(0f) }
     var screenHeightDp by remember { mutableFloatStateOf(0f) }
     var topReservedDp by remember { mutableFloatStateOf(0f) }
@@ -122,7 +124,13 @@ fun PetScreen(
                 bottomReservedDp = bottomReservedDp,
                 spriteDp = spriteDp,
             )
-        vm.setHabitat(habitat.bounds, habitat.anchors)
+        defaultBowlPositionState = habitat.defaultBowlPosition
+        vm.setHabitat(
+            bounds = habitat.bounds,
+            anchors = habitat.anchors,
+            bowlBounds = habitat.bowlClampBounds,
+            defaultBowlPosition = habitat.defaultBowlPosition,
+        )
     }
 
     Box(modifier = modifier.fillMaxSize().background(Color(0xFFE9C9B6))) {
@@ -254,7 +262,13 @@ fun PetScreen(
             // one frame. Gate the decor block on bottomReservedDp so the flash is gone.
             if (bottomReservedDp > 0f) {
                 val playAreaBottom = screenHeightDp - bottomReservedDp
-                // Food bowl decor sits at the bottom-left. Switches to bowl_full when filled.
+                // Food bowl decor — draggable via long-press. world.bowlPosition is
+                // the source of truth; the default placement (computed from the
+                // measured play area) is used until the LaunchedEffect populates it.
+                val bowlPos =
+                    state.world.bowlPosition
+                        ?: defaultBowlPositionState
+                        ?: Position(24f, playAreaBottom - BOWL_HEIGHT_DP - 16f)
                 Image(
                     painter =
                         painterResource(
@@ -266,11 +280,33 @@ fun PetScreen(
                             .offset {
                                 with(density) {
                                     IntOffset(
-                                        x = 24.dp.roundToPx(),
-                                        y = (playAreaBottom - 32f - 16f).dp.roundToPx(),
+                                        x = bowlPos.x.dp.roundToPx(),
+                                        y = bowlPos.y.dp.roundToPx(),
                                     )
                                 }
-                            }.size(width = 64.dp, height = 32.dp),
+                            }.size(width = BOWL_WIDTH_DP.dp, height = BOWL_HEIGHT_DP.dp)
+                            .pointerInput(pet.id) {
+                                detectDragGesturesAfterLongPress(
+                                    onDrag = { change, dragAmountPx ->
+                                        change.consume()
+                                        // Same fallback chain as the rendered bowlPos above:
+                                        // if the LaunchedEffect hasn't populated
+                                        // defaultBowlPositionState yet, the rendered bowl uses
+                                        // the inline (24, floor) fallback — accept the first
+                                        // drag stroke from that same starting point instead of
+                                        // silently dropping it.
+                                        val current =
+                                            vm.state.value.world.bowlPosition
+                                                ?: defaultBowlPositionState
+                                                ?: Position(24f, playAreaBottom - BOWL_HEIGHT_DP - 16f)
+                                        val dx = with(density) { dragAmountPx.x.toDp().value }
+                                        val dy = with(density) { dragAmountPx.y.toDp().value }
+                                        vm.onBowlMoved(
+                                            Position(current.x + dx, current.y + dy),
+                                        )
+                                    },
+                                )
+                            },
                 )
 
                 // Toy on the floor when present
@@ -380,12 +416,16 @@ fun PetScreen(
                                     (0 until pet.poopCount).map { i ->
                                         poopRectFor(i, poopOffsets, screenWidthDp, playAreaBottomLocal)
                                     }
+                                val activeBowlPos =
+                                    state.world.bowlPosition
+                                        ?: defaultBowlPositionState
+                                        ?: Position(24f, playAreaBottomLocal - BOWL_HEIGHT_DP - 16f)
                                 val bowlRect =
                                     DpRect(
-                                        left = 24f,
-                                        top = playAreaBottomLocal - 32f - 16f,
-                                        right = 24f + 64f,
-                                        bottom = playAreaBottomLocal - 16f,
+                                        left = activeBowlPos.x,
+                                        top = activeBowlPos.y,
+                                        right = activeBowlPos.x + BOWL_WIDTH_DP,
+                                        bottom = activeBowlPos.y + BOWL_HEIGHT_DP,
                                     )
                                 val catBehavior = state.behavior
                                 val catRect =
