@@ -30,6 +30,8 @@ import kotlinx.coroutines.delay
 data class SpeechBubblePlacement(
     /** Bubble's top-left x in the same coordinate space as `catX` / `screenWidth`. */
     val bubbleX: Float,
+    /** Bubble's top-left y in the same coordinate space as `catY`. */
+    val bubbleY: Float,
     /** Tail anchor x, expressed in the bubble's own local coordinate space (0..bubbleWidth). */
     val tailX: Float,
 )
@@ -37,24 +39,31 @@ data class SpeechBubblePlacement(
 /**
  * Pure-function placement for the cat's speech bubble.
  *
- * Centers a [bubbleWidth]-wide bubble over the cat's horizontal center
- * ([catX] + [catWidth] / 2), then clamps the bubble within
+ * Horizontally: centers a [bubbleWidth]-wide bubble over the cat's horizontal
+ * center ([catX] + [catWidth] / 2), then clamps the bubble within
  * [[horizontalPadding], [screenWidth] - [horizontalPadding]]. The tail's x is
  * re-anchored toward the cat's center so it still points at the cat after the
  * clamp, and is itself kept within [[tailMargin], [bubbleWidth] - [tailMargin]]
- * so the tail never spills past the bubble's rounded corners.
+ * so the tail never spills past the bubble's rounded corners. Degenerate case:
+ * when the bubble is wider than the available width, it's centered (which lets
+ * it spill equally on both sides — the only visually reasonable choice) and
+ * the tail pins to the bubble's center.
  *
- * Degenerate case: when the bubble is wider than the available width, it's
- * centered (which lets it spill equally on both sides — the only visually
- * reasonable choice) and the tail pins to the bubble's center.
+ * Vertically: positions the bubble so the tail tip's y lands at
+ * [catY] - [tailTipGap] regardless of [bubbleHeight]. This keeps the tail
+ * pointing at the same spot above the cat's head whether the bubble is one
+ * line tall or wrapped to several lines after horizontal clamping (issue #37).
  */
 fun computeSpeechBubblePlacement(
     catX: Float,
+    catY: Float,
     catWidth: Float,
     bubbleWidth: Float,
+    bubbleHeight: Float,
     screenWidth: Float,
     horizontalPadding: Float,
     tailMargin: Float,
+    tailTipGap: Float,
 ): SpeechBubblePlacement {
     val catCenter = catX + catWidth / 2f
     val available = screenWidth - 2f * horizontalPadding
@@ -71,7 +80,8 @@ fun computeSpeechBubblePlacement(
     val tailLo = tailMargin.coerceAtMost(bubbleWidth / 2f)
     val tailHi = (bubbleWidth - tailMargin).coerceAtLeast(bubbleWidth / 2f)
     val tailX = rawTail.coerceIn(tailLo, tailHi)
-    return SpeechBubblePlacement(bubbleX = bubbleX, tailX = tailX)
+    val bubbleY = catY - tailTipGap - bubbleHeight
+    return SpeechBubblePlacement(bubbleX = bubbleX, bubbleY = bubbleY, tailX = tailX)
 }
 
 /**
@@ -116,6 +126,9 @@ const val SPEECH_BUBBLE_EDGE_PADDING_DP = 8f
 
 /** dp from each end of the bubble that the tail anchor can't cross (keeps it clear of corners). */
 const val SPEECH_BUBBLE_TAIL_MARGIN_DP = 16f
+
+/** dp gap between the speech-bubble tail tip and the top of the cat sprite. */
+const val SPEECH_BUBBLE_TAIL_TIP_GAP_DP = 8f
 
 @Composable
 fun SpeechBubble(
