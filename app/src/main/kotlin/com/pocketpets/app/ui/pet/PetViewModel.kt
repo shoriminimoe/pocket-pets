@@ -62,11 +62,11 @@ class PetViewModel(
     @Volatile private var habitatBounds: HabitatBounds = defaultBounds
 
     /**
-     * Snapshot of the habitat's static anchors (bed; bowl floor-y fallback).
-     * The bowl's live x comes from [_world]'s `bowlPosition`, so this cache only
-     * supplies `bowl.y` (the floor line the cat plants its feet on) and the
-     * `bowl` value as a whole pre-measurement fallback that
-     * [CatBehaviorRules.bowlAnchor] consults when `world.bowlPosition` is null.
+     * Snapshot of the habitat's static anchors (bed; bowl floor-y reference).
+     * The bowl's live x comes from [_world]'s `bowlPosition`, so this cache
+     * supplies `bowl.y` as the unconditional floor-line reference the cat plants
+     * its feet on, and the whole `bowl` Position as the pre-measurement fallback
+     * that [CatBehaviorRules.bowlAnchor] consults when `world.bowlPosition` is null.
      */
     @Volatile private var habitatAnchors: Anchors = defaultAnchors
 
