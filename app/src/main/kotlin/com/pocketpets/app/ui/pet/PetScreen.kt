@@ -340,41 +340,57 @@ fun PetScreen(
             // Speech bubble — emitted after the floor decor so it always
             // floats above every floor sprite regardless of bottom-Y. Anchored
             // above the cat at its current position. The bubble measures its
-            // own width via onSizeChanged, then computeSpeechBubblePlacement
-            // clamps its X within the screen and re-anchors the tail toward
-            // the cat — so it can't run off the left/right edges when the cat
-            // is near one. It stays in composition while unmeasured (alpha 0)
-            // so onSizeChanged fires; otherwise the first frame would draw
-            // the tail at the bubble's left corner before the clamp settles.
+            // own width and height via onSizeChanged, then
+            // computeSpeechBubblePlacement clamps its X within the screen,
+            // re-anchors the tail toward the cat, and derives Y from the
+            // measured bubble height so the tail tip lands a fixed gap above
+            // the cat's head regardless of how many lines the text wraps to
+            // after the horizontal clamp (issue #37). It stays in composition
+            // while unmeasured (alpha 0) so onSizeChanged fires; otherwise the
+            // first frame would draw the tail at the bubble's left corner
+            // before the clamp settles.
             if (behavior != null) {
                 val spriteDpValue = stageSpriteSize(state.stage).value
                 var bubbleWidthDp by remember { mutableFloatStateOf(0f) }
+                var bubbleHeightDp by remember { mutableFloatStateOf(0f) }
                 val placement =
-                    remember(behavior.position.x, spriteDpValue, bubbleWidthDp, screenWidthDp) {
-                        if (bubbleWidthDp <= 0f || screenWidthDp <= 0f) {
+                    remember(
+                        behavior.position.x,
+                        behavior.position.y,
+                        spriteDpValue,
+                        bubbleWidthDp,
+                        bubbleHeightDp,
+                        screenWidthDp,
+                    ) {
+                        if (bubbleWidthDp <= 0f || bubbleHeightDp <= 0f || screenWidthDp <= 0f) {
                             null
                         } else {
                             computeSpeechBubblePlacement(
                                 catX = behavior.position.x,
+                                catY = behavior.position.y,
                                 catWidth = spriteDpValue,
                                 bubbleWidth = bubbleWidthDp,
+                                bubbleHeight = bubbleHeightDp,
                                 screenWidth = screenWidthDp,
                                 horizontalPadding = SPEECH_BUBBLE_EDGE_PADDING_DP,
                                 tailMargin = SPEECH_BUBBLE_TAIL_MARGIN_DP,
+                                tailTipGap = SPEECH_BUBBLE_TAIL_TIP_GAP_DP,
                             )
                         }
                     }
                 val measured = placement != null
                 val bubbleX = placement?.bubbleX ?: behavior.position.x
+                val bubbleY = placement?.bubbleY ?: behavior.position.y
                 val tailDp = placement?.tailX?.dp ?: (bubbleWidthDp / 2f).dp
                 Box(
                     modifier =
                         Modifier
-                            .offset(x = bubbleX.dp, y = (behavior.position.y - 64f).dp)
+                            .offset(x = bubbleX.dp, y = bubbleY.dp)
                             .alpha(if (measured) 1f else 0f)
                             .onSizeChanged { sizePx ->
                                 with(density) {
                                     bubbleWidthDp = sizePx.width.toDp().value
+                                    bubbleHeightDp = sizePx.height.toDp().value
                                 }
                             },
                 ) {
