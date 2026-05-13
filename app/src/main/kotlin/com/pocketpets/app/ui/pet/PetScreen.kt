@@ -114,7 +114,10 @@ fun PetScreen(
     // must reserve that much room on the right and bottom — otherwise the
     // sprite's box renders past the play area when the cat sits at maxX/maxY.
     val spriteDp = stageSpriteSize(state.stage).value
-    LaunchedEffect(screenWidthDp, screenHeightDp, topReservedDp, bottomReservedDp, spriteDp) {
+    // pet?.id is in the keys so a pet switch re-runs setHabitat: the VM clears
+    // _world.bowlPosition on switch, and setHabitat re-materialises it from
+    // the screen-derived default plus refreshes habitatAnchors.bowl.
+    LaunchedEffect(pet?.id, screenWidthDp, screenHeightDp, topReservedDp, bottomReservedDp, spriteDp) {
         if (screenWidthDp <= 0f ||
             screenHeightDp <= 0f ||
             topReservedDp <= 0f ||
