@@ -64,11 +64,16 @@ class PetViewModel(
 
     @Volatile private var habitatBounds: HabitatBounds = defaultBounds
 
+    /**
+     * Snapshot of the habitat's static anchors (bed; bowl floor-y reference).
+     * The bowl's live x comes from [_world]'s `bowlPosition`, so this cache
+     * supplies `bowl.y` as the unconditional floor-line reference the cat plants
+     * its feet on, and the whole `bowl` Position as the pre-measurement fallback
+     * that [CatBehaviorRules.bowlAnchor] consults when `world.bowlPosition` is null.
+     */
     @Volatile private var habitatAnchors: Anchors = defaultAnchors
 
     @Volatile private var bowlClampBounds: HabitatBounds = defaultBowlBounds
-
-    @Volatile private var bowlAnchorYFloor: Float = defaultAnchors.bowl.y
 
     @Volatile private var currentMood: Mood = Mood.IDLE
 
@@ -211,7 +216,6 @@ class PetViewModel(
     ) {
         habitatBounds = bounds
         bowlClampBounds = bowlBounds
-        bowlAnchorYFloor = anchors.bowl.y
         // Initialise the bowl on first measurement; on later habitat changes
         // re-clamp it so a freshly-rotated screen can't leave the bowl off-area.
         val current = _world.value
@@ -228,18 +232,16 @@ class PetViewModel(
         }
     }
 
+    /**
+     * Records a bowl drag in the world state. The cat's hungry target follows
+     * `world.bowlPosition.x` (see [CatBehaviorRules.bowlAnchor]) so the cached
+     * `habitatAnchors.bowl.x` is intentionally not updated here — only the
+     * `bowl.y` floor reference (set by [setHabitat]) participates in cat
+     * targeting after first measurement.
+     */
     fun onBowlMoved(position: Position) {
         val clamped = bowlClampBounds.clamp(position)
         _world.value = _world.value.copy(bowlPosition = clamped)
-        habitatAnchors =
-            habitatAnchors.copy(
-                bowl =
-                    bowlAnchorFor(
-                        clamped,
-                        habitatBounds,
-                        Position(habitatAnchors.bowl.x, bowlAnchorYFloor),
-                    ),
-            )
     }
 
     fun feed() = withActive { repo.feed(it) }
