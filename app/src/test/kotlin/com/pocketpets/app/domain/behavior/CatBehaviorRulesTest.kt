@@ -516,6 +516,111 @@ class CatBehaviorRulesTest {
         assertThat(out.position.x).isAtMost(bounds.maxX)
     }
 
+    // ----- toy clamping (issue #28) ----------------------------------------
+
+    @Test
+    fun `toy dropped past right edge clamps cat target to bounds, toy world position untouched`() {
+        // Toy dropped where the cat sprite top-left could not fit (right of maxX).
+        val rawToy = Position(bounds.maxX + 80f, 50f)
+        val world = HabitatWorld(toy = rawToy)
+        val b = behavior(state = CatState.Idle, x = 10f, y = 10f, targetX = 10f, targetY = 10f)
+        val out =
+            CatBehaviorRules.tick(
+                b,
+                t0,
+                0.016f,
+                Mood.IDLE,
+                bounds,
+                anchors,
+                Random(0),
+                world = world,
+            )
+        assertThat(out.state).isEqualTo(CatState.Walking)
+        // Cat target must be inside walkable bounds.
+        assertThat(out.target.x).isAtMost(bounds.maxX)
+        assertThat(out.target.x).isAtLeast(bounds.minX)
+        assertThat(out.target.y).isAtMost(bounds.maxY)
+        assertThat(out.target.y).isAtLeast(bounds.minY)
+    }
+
+    @Test
+    fun `toy dropped below bottom edge clamps cat target to bounds`() {
+        // playAreaRect extends below bounds.maxY (cat top-left can't sit that low).
+        val rawToy = Position(50f, bounds.maxY + 60f)
+        val world = HabitatWorld(toy = rawToy)
+        val b = behavior(state = CatState.Idle, x = 10f, y = 10f, targetX = 10f, targetY = 10f)
+        val out =
+            CatBehaviorRules.tick(
+                b,
+                t0,
+                0.016f,
+                Mood.IDLE,
+                bounds,
+                anchors,
+                Random(0),
+                world = world,
+            )
+        assertThat(out.state).isEqualTo(CatState.Walking)
+        assertThat(out.target.y).isAtMost(bounds.maxY)
+        assertThat(out.target.y).isAtLeast(bounds.minY)
+    }
+
+    @Test
+    fun `toy dropped past left and top edges clamps cat target to bounds`() {
+        // Toy dropped above and left of bounds (raw playAreaRect can extend past
+        // minX/minY just as it can past maxX/maxY). Symmetric coverage with the
+        // right/bottom cases above to lock in both ends of the coerceIn clamp.
+        val rawToy = Position(-50f, -50f)
+        val world = HabitatWorld(toy = rawToy)
+        val b = behavior(state = CatState.Idle, x = 100f, y = 50f, targetX = 100f, targetY = 50f)
+        val out =
+            CatBehaviorRules.tick(
+                b,
+                t0,
+                0.016f,
+                Mood.IDLE,
+                bounds,
+                anchors,
+                Random(0),
+                world = world,
+            )
+        assertThat(out.state).isEqualTo(CatState.Walking)
+        assertThat(out.target.x).isAtLeast(bounds.minX)
+        assertThat(out.target.x).isAtMost(bounds.maxX)
+        assertThat(out.target.y).isAtLeast(bounds.minY)
+        assertThat(out.target.y).isAtMost(bounds.maxY)
+    }
+
+    @Test
+    fun `walking cat that reaches clamped toy anchor becomes Playing even when toy is out of bounds`() {
+        // Cat already at the clamped anchor (right edge); toy itself is past the edge.
+        val rawToy = Position(bounds.maxX + 80f, 50f)
+        val world = HabitatWorld(toy = rawToy)
+        val anchor = bounds.clamp(rawToy)
+        val b =
+            behavior(
+                state = CatState.Walking,
+                x = anchor.x,
+                y = anchor.y,
+                targetX = anchor.x,
+                targetY = anchor.y,
+            )
+        val out =
+            CatBehaviorRules.tick(
+                b,
+                t0,
+                0.1f,
+                Mood.IDLE,
+                bounds,
+                anchors,
+                Random(0),
+                world = world,
+            )
+        // Without the fix the cat oscillates and never enters Playing.
+        assertThat(out.state).isEqualTo(CatState.Playing)
+        assertThat(out.stateUntil).isNotNull()
+    }
+
     @Test
     fun `hungry cat targets world bowlPosition, not the cached anchors bowl`() {
         // Stale anchor case: the world's bowlPosition has moved to x=150, but
