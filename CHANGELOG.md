@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.4.2](https://github.com/shoriminimoe/pocket-pets/compare/v0.4.1...v0.4.2) (2026-05-13)
+
+
+### Bug Fixes
+
+* clarify drop(1) comment and assert exact reset position ([119daf6](https://github.com/shoriminimoe/pocket-pets/commit/119daf6e072e9355b269e5aed1fb28a9028f4eb4))
+* recenter speech bubble Y so tail tip stays above cat's head ([d7685ad](https://github.com/shoriminimoe/pocket-pets/commit/d7685ad8a8fa1c4a28ad5f0408e7432db48c0f3c))
+* recenter speech bubble Y so tail tip stays above cat's head ([8ee3a2d](https://github.com/shoriminimoe/pocket-pets/commit/8ee3a2d34f712d0f7c03ae8de2591792e5ec2485))
+* reset bowl, toy, cat position, and speech on active-pet switch ([9c2cb31](https://github.com/shoriminimoe/pocket-pets/commit/9c2cb31f876406284d34149d2c84e0b2246b78d3))
+* reset bowl, toy, cat position, and speech on active-pet switch ([7a10d54](https://github.com/shoriminimoe/pocket-pets/commit/7a10d54921fd7488e8bc5980f18e5e546826a85e))
+
 ## [0.4.1](https://github.com/shoriminimoe/pocket-pets/compare/v0.4.0...v0.4.1) (2026-05-13)
 
 
