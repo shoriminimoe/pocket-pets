@@ -86,4 +86,17 @@ class FloorSpriteTest {
 
         assertThat(sorted).containsExactly(toy, cat).inOrder()
     }
+
+    @Test
+    fun `poop sorts against bowl and toy by feet line`() {
+        // Toy feet 148 (100 + TOY 48); poop feet 248 (200 + POOP 48);
+        // bowl feet 432 (400 + BOWL 32). Lower feet draw later.
+        val toy = FloorSprite.Toy(topLeftY = 100f)
+        val poop = FloorSprite.Poop(index = 0, topLeftY = 200f)
+        val bowl = FloorSprite.Bowl(topLeftY = 400f)
+
+        val sorted = floorSpriteOrder(listOf(bowl, poop, toy))
+
+        assertThat(sorted).containsExactly(toy, poop, bowl).inOrder()
+    }
 }
