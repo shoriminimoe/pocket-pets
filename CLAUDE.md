@@ -75,6 +75,10 @@ Exactly one row in `pets` has `isActive=1`. `PetDao.setActiveExclusive(id)` is `
 - Room/DataStore/repository tests use `@RunWith(RobolectricTestRunner::class)` and `Room.inMemoryDatabaseBuilder`. `PetCareWorkerTest` uses `TestListenableWorkerBuilder` directly — do **not** call `WorkManagerTestInitHelper.initializeTestWorkManager`; it conflicts with the app's own `Configuration.Provider`.
 - Time is always injected via `kotlinx.datetime.Clock`. Production wires `Clock.System`; tests use `app/src/test/.../testing/FakeClock.kt`.
 
+## Test-driven development
+
+Follow the `superpowers:test-driven-development` skill for all production code changes (features, bug fixes, refactors).
+
 ## Versioning and CI/CD
 
 - Conventional commits drive everything. `feat:` → minor bump (within 0.x), `fix:` → patch, anything else (`build:`, `ci:`, `docs:`, `chore:`) → no release. The repo is in 0.x with `bump-minor-pre-major: true` so a `feat:` correctly bumps the minor.
