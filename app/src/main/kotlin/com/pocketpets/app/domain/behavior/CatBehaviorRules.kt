@@ -313,13 +313,16 @@ private fun Random.nextFloatInRange(
 ): Float = min + nextFloat() * (max - min)
 
 /**
- * Cat destination derived from a toy's raw drop position. Mirrors
+ * Cat destination derived from a toy's raw drop position. Complements
  * [com.pocketpets.app.ui.pet.bowlAnchorFor]: the toy's render position is left
  * alone, but the cat's target is clamped into the cat-walkable [bounds] so a
  * toy dropped past the edge of the play area still has a reachable destination
- * inside the habitat. Without this, [CatBehaviorRules.tick]'s `snapIntoBounds`
- * would pull the cat back inside bounds while leaving the target outside,
- * producing endless walk/snap oscillation and a never-arrived Playing state.
+ * inside the habitat. Unlike `bowlAnchorFor` — which clamps only x and pins y
+ * to a floor-anchor fallback — this clamps both axes via [HabitatBounds.clamp]
+ * because a toy can land anywhere in the play area, not just on the floor line.
+ * Without this, [CatBehaviorRules.tick]'s `snapIntoBounds` would pull the cat
+ * back inside bounds while leaving the target outside, producing endless
+ * walk/snap oscillation and a never-arrived Playing state.
  */
 fun playAnchorFor(
     toyPosition: Position,
