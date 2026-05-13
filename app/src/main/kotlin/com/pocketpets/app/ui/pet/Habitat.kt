@@ -14,6 +14,13 @@ data class Habitat(
 
 const val BOWL_WIDTH_DP = 64f
 const val BOWL_HEIGHT_DP = 32f
+
+/** Footprint of the toy sprite as drawn in [PetScreen]. */
+const val TOY_SIZE_DP = 48f
+
+/** Footprint of each poop sprite as drawn in [PetScreen]. */
+const val POOP_SIZE_DP = 48f
+
 private const val ANCHOR_INSET_DP = 24f
 private const val ANCHOR_BOTTOM_PADDING_DP = 16f
 private const val BOWL_DEFAULT_LEFT_DP = 24f
