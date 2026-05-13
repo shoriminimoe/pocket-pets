@@ -418,6 +418,73 @@ class PetViewModelTest {
             }
         }
 
+    @Test fun `switching active pet resets world, behavior, and active phrase`() =
+        runTest {
+            val testScope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
+            val repo = FakeRepo(samplePet(id = 1))
+            val vm = newVm(repo, testScope, seed = 7)
+            try {
+                vm.state.first { it.pet != null }
+
+                // Dirty the per-pet environment state for pet 1.
+                vm.setHabitat(
+                    bounds =
+                        com.pocketpets.app.domain.behavior
+                            .HabitatBounds(0f, 0f, 240f, 200f),
+                    anchors =
+                        com.pocketpets.app.domain.behavior.Anchors(
+                            bed =
+                                com.pocketpets.app.domain.behavior
+                                    .Position(180f, 160f),
+                            bowl =
+                                com.pocketpets.app.domain.behavior
+                                    .Position(40f, 160f),
+                        ),
+                    bowlBounds =
+                        com.pocketpets.app.domain.behavior
+                            .HabitatBounds(0f, 0f, 336f, 268f),
+                )
+                vm.onFoodDroppedOnBowl()
+                vm.onToyDropped(
+                    com.pocketpets.app.domain.behavior
+                        .Position(50f, 60f),
+                )
+                vm.onBowlMoved(
+                    com.pocketpets.app.domain.behavior
+                        .Position(100f, 120f),
+                )
+                vm.talk()
+                vm.state.first {
+                    it.world.bowlFilled &&
+                        it.world.toy != null &&
+                        it.world.bowlPosition != null &&
+                        it.activePhrase != null
+                }
+                val movedPosition =
+                    com.pocketpets.app.domain.behavior
+                        .Position(200f, 175f)
+                vm.behaviorFlow.value =
+                    vm.behaviorFlow.value.copy(
+                        position = movedPosition,
+                        target = movedPosition,
+                    )
+
+                // Switch to a different pet — same FakeRepo, new pet emission.
+                repo.activeFlow.value = samplePet(id = 2)
+
+                val afterSwitch = vm.state.first { it.pet?.id == 2L }
+                assertThat(afterSwitch.world.bowlFilled).isFalse()
+                assertThat(afterSwitch.world.toy).isNull()
+                assertThat(afterSwitch.world.bowlPosition).isNull()
+                assertThat(afterSwitch.activePhrase).isNull()
+                assertThat(afterSwitch.behavior?.state)
+                    .isEqualTo(com.pocketpets.app.domain.behavior.CatState.Idle)
+                assertThat(afterSwitch.behavior?.position).isNotEqualTo(movedPosition)
+            } finally {
+                testScope.cancel()
+            }
+        }
+
     @Test fun `same-state writes to behaviorFlow do not re-fire side effects`() =
         runTest {
             val testScope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)

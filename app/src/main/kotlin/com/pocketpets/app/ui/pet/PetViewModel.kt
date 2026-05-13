@@ -25,6 +25,9 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
@@ -77,14 +80,15 @@ class PetViewModel(
      * [state] (which exposes a snapshot via [PetUiState.behavior]).
      */
     internal val behaviorFlow: MutableStateFlow<CatBehavior> =
-        MutableStateFlow(
-            CatBehavior(
-                state = CatState.Idle,
-                position = Position(120f, 100f),
-                target = Position(120f, 100f),
-                facing = Direction.SOUTH,
-                nextWanderAt = clock.now().plusSeconds(45),
-            ),
+        MutableStateFlow(freshBehavior())
+
+    private fun freshBehavior(): CatBehavior =
+        CatBehavior(
+            state = CatState.Idle,
+            position = Position(120f, 100f),
+            target = Position(120f, 100f),
+            facing = Direction.SOUTH,
+            nextWanderAt = clock.now().plusSeconds(45),
         )
 
     private val currentPhrase = MutableStateFlow<Phrase?>(null)
@@ -145,6 +149,29 @@ class PetViewModel(
                     )
                 }
             }
+        }
+        // Reset transient per-pet state when the active pet changes. The
+        // ViewModel is scoped to the navigation entry, not the pet, so the
+        // previous pet's bowl/toy/cat-position/speech would otherwise carry
+        // over on switch. habitatAnchors gets reset too: anchors.bowl is
+        // derived from the pet's bowlPosition by setHabitat/onBowlMoved, and
+        // CatBehaviorRules uses it to steer a hungry cat to the bowl — leaving
+        // it stale would send the new pet toward where the previous pet's
+        // bowl was. PetScreen's LaunchedEffect re-derives the anchor for the
+        // current screen layout when it next fires. drop(1) skips the initial
+        // emission since the flows already start at default values.
+        scope.launch {
+            repo
+                .observeActive()
+                .map { it?.id }
+                .distinctUntilChanged()
+                .drop(1)
+                .collect {
+                    _world.value = HabitatWorld()
+                    behaviorFlow.value = freshBehavior()
+                    currentPhrase.value = null
+                    habitatAnchors = defaultAnchors
+                }
         }
         // Side-effect dispatch on state transitions. Observes behaviorFlow and
         // fires repo calls / world mutations exactly once per transition. Stays
