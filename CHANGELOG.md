@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.4.1](https://github.com/shoriminimoe/pocket-pets/compare/v0.4.0...v0.4.1) (2026-05-13)
+
+
+### Bug Fixes
+
+* cat walks to current bowl position ([#27](https://github.com/shoriminimoe/pocket-pets/issues/27)) ([e76936e](https://github.com/shoriminimoe/pocket-pets/commit/e76936e66efb9b0abef378780b624182f7f65aff))
+* cat walks to current bowl position ([#27](https://github.com/shoriminimoe/pocket-pets/issues/27)) ([febc5c9](https://github.com/shoriminimoe/pocket-pets/commit/febc5c9560ee13ef5da25fb68d9b050ef6b98671))
+* defer speech bubble tail until measured ([efc4d6b](https://github.com/shoriminimoe/pocket-pets/commit/efc4d6b32b8ccd56d387dc5ebdc015469b728faf))
+* depth-sort floor sprites by bottom-Y so cat and bowl layer correctly ([#30](https://github.com/shoriminimoe/pocket-pets/issues/30)) ([322c0c6](https://github.com/shoriminimoe/pocket-pets/commit/322c0c6439bb5d7fd0b7e8b6302bbcdc5a1a3874))
+* depth-sort floor sprites so cat and bowl layer correctly ([#30](https://github.com/shoriminimoe/pocket-pets/issues/30)) ([fa38af2](https://github.com/shoriminimoe/pocket-pets/commit/fa38af2558f27c5458c8dd352da3a3154f41b332))
+* expand bowl drop hit-zone for more forgiving food drops ([#29](https://github.com/shoriminimoe/pocket-pets/issues/29)) ([1ca2eab](https://github.com/shoriminimoe/pocket-pets/commit/1ca2eab317be9be67ef3bd049b509e5043a830b6))
+* expand bowl drop hit-zone for more forgiving food drops ([#29](https://github.com/shoriminimoe/pocket-pets/issues/29)) ([44acdaf](https://github.com/shoriminimoe/pocket-pets/commit/44acdafe1a91b9356eab8321e0b49f6c812eb01b))
+* render speech bubble above depth-sorted floor decor ([b4be7f0](https://github.com/shoriminimoe/pocket-pets/commit/b4be7f0f793d19277f301bfed638af1ecd007a91))
+* speech bubble gets a tail and clamps within habitat bounds ([a9bfad1](https://github.com/shoriminimoe/pocket-pets/commit/a9bfad11e66985febde630ff43f7dfaf79c47c57))
+* speech bubble gets a tail and clamps within habitat bounds ([#31](https://github.com/shoriminimoe/pocket-pets/issues/31)) ([773d7a7](https://github.com/shoriminimoe/pocket-pets/commit/773d7a73c285504643e1fe74b66a94821c900057))
+
 ## [0.4.0](https://github.com/shoriminimoe/pocket-pets/compare/v0.3.0...v0.4.0) (2026-05-12)
 
 
