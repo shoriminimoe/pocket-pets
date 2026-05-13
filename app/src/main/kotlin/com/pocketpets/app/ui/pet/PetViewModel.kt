@@ -158,8 +158,11 @@ class PetViewModel(
         // CatBehaviorRules uses it to steer a hungry cat to the bowl — leaving
         // it stale would send the new pet toward where the previous pet's
         // bowl was. PetScreen's LaunchedEffect re-derives the anchor for the
-        // current screen layout when it next fires. drop(1) skips the initial
-        // emission since the flows already start at default values.
+        // current screen layout when it next fires. drop(1) skips whatever
+        // arrives first (active pet id, or `null` if the row isn't ready) so a
+        // stray reset doesn't fire on the initial subscription; if one did,
+        // it would be a no-op anyway since the VM constructs these fields at
+        // the same defaults.
         scope.launch {
             repo
                 .observeActive()

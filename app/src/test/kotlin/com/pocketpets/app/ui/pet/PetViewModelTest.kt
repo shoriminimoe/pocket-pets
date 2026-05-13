@@ -479,7 +479,14 @@ class PetViewModelTest {
                 assertThat(afterSwitch.activePhrase).isNull()
                 assertThat(afterSwitch.behavior?.state)
                     .isEqualTo(com.pocketpets.app.domain.behavior.CatState.Idle)
-                assertThat(afterSwitch.behavior?.position).isNotEqualTo(movedPosition)
+                // FakeClock is frozen, so the frame ticker's dtSec is 0 and
+                // CatBehaviorRules.tick returns the input unchanged — the
+                // reset position is the value the assertion can rely on.
+                assertThat(afterSwitch.behavior?.position)
+                    .isEqualTo(
+                        com.pocketpets.app.domain.behavior
+                            .Position(120f, 100f),
+                    )
             } finally {
                 testScope.cancel()
             }
