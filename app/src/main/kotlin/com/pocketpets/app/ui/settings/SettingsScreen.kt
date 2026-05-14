@@ -41,6 +41,12 @@ fun SettingsScreen(
             Text("Debug")
             ToggleRow("Speed up time 100×", accel) { vm.setTimeAcceleration(it) }
         }
+        Spacer(Modifier.weight(1f))
+        Text(
+            "Version ${BuildConfig.VERSION_NAME}",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 
