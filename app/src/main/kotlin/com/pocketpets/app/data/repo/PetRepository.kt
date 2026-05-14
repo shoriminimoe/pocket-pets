@@ -4,9 +4,12 @@ import com.pocketpets.app.data.db.CareEventDao
 import com.pocketpets.app.data.db.CareEventEntity
 import com.pocketpets.app.data.db.PetDao
 import com.pocketpets.app.data.db.PetEntity
+import com.pocketpets.app.data.db.PetEnvironmentDao
+import com.pocketpets.app.data.db.PetEnvironmentEntity
 import com.pocketpets.app.domain.Pet
 import com.pocketpets.app.domain.Species
 import com.pocketpets.app.domain.StatDecay
+import com.pocketpets.app.domain.behavior.PetEnvironment
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.datetime.Clock
@@ -36,11 +39,19 @@ interface PetRepo {
     suspend fun groom(id: Long)
 
     suspend fun runDecayTick(id: Long)
+
+    suspend fun getEnvironment(id: Long): PetEnvironment?
+
+    suspend fun saveEnvironment(
+        id: Long,
+        env: PetEnvironment,
+    )
 }
 
 class PetRepository(
     private val petDao: PetDao,
     private val careDao: CareEventDao,
+    private val envDao: PetEnvironmentDao,
     private val clock: Clock,
 ) : PetRepo {
     override fun observeAll(): Flow<List<Pet>> = petDao.observeAll().map { list -> list.map { it.toDomain() } }
@@ -152,6 +163,15 @@ class PetRepository(
 
     override suspend fun runDecayTick(id: Long) {
         mutate(id, "auto_tick") { it }
+    }
+
+    override suspend fun getEnvironment(id: Long): PetEnvironment? = envDao.getByPetId(id)?.toDomain()
+
+    override suspend fun saveEnvironment(
+        id: Long,
+        env: PetEnvironment,
+    ) {
+        envDao.upsert(PetEnvironmentEntity.fromDomain(id, env))
     }
 
     private suspend fun mutate(

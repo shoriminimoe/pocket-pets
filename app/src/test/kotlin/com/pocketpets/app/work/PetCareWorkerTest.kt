@@ -33,7 +33,7 @@ class PetCareWorkerTest {
                 .inMemoryDatabaseBuilder(ctx, AppDatabase::class.java)
                 .allowMainThreadQueries()
                 .build()
-        repo = PetRepository(db.petDao(), db.careEventDao(), clock)
+        repo = PetRepository(db.petDao(), db.careEventDao(), db.petEnvironmentDao(), clock)
     }
 
     @After fun teardown() {

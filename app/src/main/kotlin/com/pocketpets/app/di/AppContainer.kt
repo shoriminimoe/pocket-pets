@@ -17,12 +17,13 @@ class AppContainer(
     val database: AppDatabase by lazy {
         Room
             .databaseBuilder(appContext, AppDatabase::class.java, "pocket_pets.db")
+            .addMigrations(AppDatabase.MIGRATION_1_2)
             .fallbackToDestructiveMigration(dropAllTables = true)
             .build()
     }
 
     val petRepository: PetRepository by lazy {
-        PetRepository(database.petDao(), database.careEventDao(), clock)
+        PetRepository(database.petDao(), database.careEventDao(), database.petEnvironmentDao(), clock)
     }
 
     val settings: SettingsDataStore by lazy {
