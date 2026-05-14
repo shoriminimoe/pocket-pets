@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.5.0](https://github.com/shoriminimoe/pocket-pets/compare/v0.4.2...v0.5.0) (2026-05-14)
+
+
+### Features
+
+* show app version on settings screen ([fac14e6](https://github.com/shoriminimoe/pocket-pets/commit/fac14e6d42127d3ad61c1fa9a30af29518b08def))
+* show app version on settings screen ([ccdae3d](https://github.com/shoriminimoe/pocket-pets/commit/ccdae3dd0f5ca5e1bdf3b38472a9702ac0adbe49))
+
 ## [0.4.2](https://github.com/shoriminimoe/pocket-pets/compare/v0.4.1...v0.4.2) (2026-05-13)
 
 
