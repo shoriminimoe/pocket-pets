@@ -5,7 +5,11 @@ import androidx.test.core.app.ApplicationProvider
 import com.google.common.truth.Truth.assertThat
 import com.pocketpets.app.data.db.AppDatabase
 import com.pocketpets.app.domain.Species
+import com.pocketpets.app.domain.behavior.CatState
+import com.pocketpets.app.domain.behavior.PetEnvironment
+import com.pocketpets.app.domain.behavior.Position
 import com.pocketpets.app.testing.FakeClock
+import com.pocketpets.app.ui.sprite.Direction
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.Instant
@@ -146,27 +150,19 @@ class PetRepositoryTest {
             val b = repo.adopt("B", Species.CAT)
 
             val envA =
-                com.pocketpets.app.domain.behavior.PetEnvironment(
-                    catPosition =
-                        com.pocketpets.app.domain.behavior
-                            .Position(80f, 90f),
-                    catFacing = com.pocketpets.app.ui.sprite.Direction.WEST,
-                    catState = com.pocketpets.app.domain.behavior.CatState.Lying,
-                    bowlPosition =
-                        com.pocketpets.app.domain.behavior
-                            .Position(20f, 30f),
+                PetEnvironment(
+                    catPosition = Position(80f, 90f),
+                    catFacing = Direction.WEST,
+                    catState = CatState.Lying,
+                    bowlPosition = Position(20f, 30f),
                     bowlFilled = true,
-                    toyPosition =
-                        com.pocketpets.app.domain.behavior
-                            .Position(40f, 50f),
+                    toyPosition = Position(40f, 50f),
                 )
             val envB =
-                com.pocketpets.app.domain.behavior.PetEnvironment(
-                    catPosition =
-                        com.pocketpets.app.domain.behavior
-                            .Position(120f, 100f),
-                    catFacing = com.pocketpets.app.ui.sprite.Direction.SOUTH,
-                    catState = com.pocketpets.app.domain.behavior.CatState.Idle,
+                PetEnvironment(
+                    catPosition = Position(120f, 100f),
+                    catFacing = Direction.SOUTH,
+                    catState = CatState.Idle,
                     bowlPosition = null,
                     bowlFilled = false,
                     toyPosition = null,
@@ -187,12 +183,10 @@ class PetRepositoryTest {
         runTest {
             val id = repo.adopt("A", Species.CAT)
             val first =
-                com.pocketpets.app.domain.behavior.PetEnvironment(
-                    catPosition =
-                        com.pocketpets.app.domain.behavior
-                            .Position(10f, 20f),
-                    catFacing = com.pocketpets.app.ui.sprite.Direction.NORTH,
-                    catState = com.pocketpets.app.domain.behavior.CatState.Walking,
+                PetEnvironment(
+                    catPosition = Position(10f, 20f),
+                    catFacing = Direction.NORTH,
+                    catState = CatState.Walking,
                     bowlPosition = null,
                     bowlFilled = false,
                     toyPosition = null,
@@ -203,24 +197,38 @@ class PetRepositoryTest {
             assertThat(repo.getEnvironment(id)).isEqualTo(second)
         }
 
-    @Test fun `getEnvironment collapses persisted Eating to Idle`() =
+    @Test fun `saveEnvironment collapses transient Eating to Idle before storing`() =
         runTest {
             val id = repo.adopt("A", Species.CAT)
             val midEating =
-                com.pocketpets.app.domain.behavior.PetEnvironment(
-                    catPosition =
-                        com.pocketpets.app.domain.behavior
-                            .Position(40f, 160f),
-                    catFacing = com.pocketpets.app.ui.sprite.Direction.SOUTH,
-                    catState = com.pocketpets.app.domain.behavior.CatState.Eating,
+                PetEnvironment(
+                    catPosition = Position(40f, 160f),
+                    catFacing = Direction.SOUTH,
+                    catState = CatState.Eating,
                     bowlPosition = null,
                     bowlFilled = false,
                     toyPosition = null,
                 )
             repo.saveEnvironment(id, midEating)
-            // Eating/Playing have no exit timer once their stateUntil is lost,
-            // so reads collapse them to Idle to keep the cat reactive.
-            assertThat(repo.getEnvironment(id)?.catState)
-                .isEqualTo(com.pocketpets.app.domain.behavior.CatState.Idle)
+            // Eating/Playing have no exit timer once their stateUntil is lost.
+            // The repository sanitises them to Idle on save so reads never see
+            // a state with no exit condition.
+            assertThat(repo.getEnvironment(id)?.catState).isEqualTo(CatState.Idle)
+        }
+
+    @Test fun `saveEnvironment collapses transient Playing to Idle before storing`() =
+        runTest {
+            val id = repo.adopt("A", Species.CAT)
+            val midPlaying =
+                PetEnvironment(
+                    catPosition = Position(60f, 70f),
+                    catFacing = Direction.EAST,
+                    catState = CatState.Playing,
+                    bowlPosition = null,
+                    bowlFilled = false,
+                    toyPosition = Position(60f, 70f),
+                )
+            repo.saveEnvironment(id, midPlaying)
+            assertThat(repo.getEnvironment(id)?.catState).isEqualTo(CatState.Idle)
         }
 }

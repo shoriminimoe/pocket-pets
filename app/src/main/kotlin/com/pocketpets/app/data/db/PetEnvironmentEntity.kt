@@ -31,27 +31,15 @@ data class PetEnvironmentEntity(
     val toyX: Float?,
     val toyY: Float?,
 ) {
-    fun toDomain(): PetEnvironment {
-        val rawState =
-            runCatching { CatState.valueOf(catStateName) }.getOrDefault(CatState.Idle)
-        // Eating/Playing are duration-bounded transient states. On reload their
-        // stateUntil timer is lost, so collapse to Idle to avoid the cat being
-        // stuck in a state with no exit condition.
-        val safeState =
-            if (rawState == CatState.Eating || rawState == CatState.Playing) {
-                CatState.Idle
-            } else {
-                rawState
-            }
-        return PetEnvironment(
+    fun toDomain(): PetEnvironment =
+        PetEnvironment(
             catPosition = Position(catX, catY),
             catFacing = runCatching { Direction.valueOf(catFacing) }.getOrDefault(Direction.SOUTH),
-            catState = safeState,
+            catState = runCatching { CatState.valueOf(catStateName) }.getOrDefault(CatState.Idle),
             bowlPosition = if (bowlX != null && bowlY != null) Position(bowlX, bowlY) else null,
             bowlFilled = bowlFilled,
             toyPosition = if (toyX != null && toyY != null) Position(toyX, toyY) else null,
         )
-    }
 
     companion object {
         fun fromDomain(

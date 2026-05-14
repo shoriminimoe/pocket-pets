@@ -522,6 +522,78 @@ class PetViewModelTest {
             }
         }
 
+    @Test fun `clearing the active pet saves its environment under the old id`() =
+        runTest {
+            val testScope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
+            val repo = FakeRepo(samplePet(id = 1))
+            val vm = newVm(repo, testScope)
+            try {
+                vm.state.first { it.pet != null }
+                val toyPos =
+                    com.pocketpets.app.domain.behavior
+                        .Position(70f, 80f)
+                vm.onToyDropped(toyPos)
+                vm.state.first { it.world.toy == toyPos }
+
+                // No active pet — the collector should still save pet 1's
+                // current state before applying defaults.
+                repo.activeFlow.value = null
+                vm.state.first { it.pet == null }
+                assertThat(repo.environments[1L]?.toyPosition).isEqualTo(toyPos)
+
+                // Re-activating pet 1 should restore the saved state.
+                repo.activeFlow.value = samplePet(id = 1)
+                val restored = vm.state.first { it.pet?.id == 1L && it.world.toy == toyPos }
+                assertThat(restored.world.toy).isEqualTo(toyPos)
+            } finally {
+                testScope.cancel()
+            }
+        }
+
+    @Test fun `onBowlMoved does not persist on each delta, only onBowlDragEnded does`() =
+        runTest {
+            val testScope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
+            val repo = FakeRepo(samplePet(id = 1))
+            val vm = newVm(repo, testScope)
+            try {
+                vm.state.first { it.pet != null }
+                vm.setHabitat(
+                    bounds =
+                        com.pocketpets.app.domain.behavior
+                            .HabitatBounds(0f, 0f, 240f, 200f),
+                    anchors =
+                        com.pocketpets.app.domain.behavior.Anchors(
+                            bed =
+                                com.pocketpets.app.domain.behavior
+                                    .Position(180f, 160f),
+                            bowl =
+                                com.pocketpets.app.domain.behavior
+                                    .Position(40f, 160f),
+                        ),
+                    bowlBounds =
+                        com.pocketpets.app.domain.behavior
+                            .HabitatBounds(0f, 0f, 336f, 268f),
+                )
+                // Many drag-delta events — none should reach the repo.
+                repeat(20) { i ->
+                    vm.onBowlMoved(
+                        com.pocketpets.app.domain.behavior
+                            .Position(10f + i, 20f + i),
+                    )
+                }
+                assertThat(repo.environments[1L]).isNull()
+
+                // Drag-end fires one save with the final position.
+                vm.onBowlDragEnded()
+                val finalPos =
+                    com.pocketpets.app.domain.behavior
+                        .Position(29f, 39f)
+                assertThat(repo.environments[1L]?.bowlPosition).isEqualTo(finalPos)
+            } finally {
+                testScope.cancel()
+            }
+        }
+
     @Test fun `same-state writes to behaviorFlow do not re-fire side effects`() =
         runTest {
             val testScope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)

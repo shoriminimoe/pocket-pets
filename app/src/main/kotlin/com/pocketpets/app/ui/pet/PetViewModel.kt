@@ -218,19 +218,13 @@ class PetViewModel(
     private fun currentEnvironment(): PetEnvironment {
         val b = behaviorFlow.value
         val w = _world.value
-        // Eating/Playing are duration-bounded by stateUntil; we don't persist
-        // that timer, so collapse to Idle to avoid restoring a state with no
-        // exit condition. The cat picks up the action again on its next tick.
-        val safeState =
-            if (b.state == CatState.Eating || b.state == CatState.Playing) {
-                CatState.Idle
-            } else {
-                b.state
-            }
+        // Transient Eating/Playing states are collapsed to Idle by the
+        // repository's saveEnvironment; we don't sanitise here so the snapshot
+        // faithfully reflects what's on screen at capture time.
         return PetEnvironment(
             catPosition = b.position,
             catFacing = b.facing,
-            catState = safeState,
+            catState = b.state,
             bowlPosition = w.bowlPosition,
             bowlFilled = w.bowlFilled,
             toyPosition = w.toy,
@@ -302,10 +296,19 @@ class PetViewModel(
      * `habitatAnchors.bowl.x` is intentionally not updated here — only the
      * `bowl.y` floor reference (set by [setHabitat]) participates in cat
      * targeting after first measurement.
+     *
+     * Deliberately does NOT persist: Compose's drag gesture fires this once
+     * per pointer delta (tens of times per second). Persistence happens at
+     * the drag boundary via [onBowlDragEnded], or implicitly on the next pet
+     * switch / world-mutating action.
      */
     fun onBowlMoved(position: Position) {
         val clamped = bowlClampBounds.clamp(position)
         _world.value = _world.value.copy(bowlPosition = clamped)
+    }
+
+    /** Called when the user finishes dragging the bowl. Persists the final position. */
+    fun onBowlDragEnded() {
         persistEnvironment()
     }
 

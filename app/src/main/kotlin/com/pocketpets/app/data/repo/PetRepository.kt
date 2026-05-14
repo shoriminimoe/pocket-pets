@@ -9,6 +9,7 @@ import com.pocketpets.app.data.db.PetEnvironmentEntity
 import com.pocketpets.app.domain.Pet
 import com.pocketpets.app.domain.Species
 import com.pocketpets.app.domain.StatDecay
+import com.pocketpets.app.domain.behavior.CatState
 import com.pocketpets.app.domain.behavior.PetEnvironment
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -40,8 +41,21 @@ interface PetRepo {
 
     suspend fun runDecayTick(id: Long)
 
+    /**
+     * Latest persisted habitat snapshot for [id], or `null` if none has been
+     * saved yet. Mirrors what [saveEnvironment] wrote, with transient
+     * [CatState.Eating]/[CatState.Playing] never appearing because the writer
+     * collapses them to [CatState.Idle].
+     */
     suspend fun getEnvironment(id: Long): PetEnvironment?
 
+    /**
+     * Upserts the per-pet habitat snapshot for [id]. [CatState.Eating] and
+     * [CatState.Playing] are duration-bounded by a `stateUntil` timer that
+     * isn't part of the snapshot, so the writer collapses them to
+     * [CatState.Idle] before storage — that's the only sanitisation; all other
+     * fields are stored as-is.
+     */
     suspend fun saveEnvironment(
         id: Long,
         env: PetEnvironment,
@@ -171,7 +185,13 @@ class PetRepository(
         id: Long,
         env: PetEnvironment,
     ) {
-        envDao.upsert(PetEnvironmentEntity.fromDomain(id, env))
+        val sanitised =
+            if (env.catState == CatState.Eating || env.catState == CatState.Playing) {
+                env.copy(catState = CatState.Idle)
+            } else {
+                env
+            }
+        envDao.upsert(PetEnvironmentEntity.fromDomain(id, sanitised))
     }
 
     private suspend fun mutate(
