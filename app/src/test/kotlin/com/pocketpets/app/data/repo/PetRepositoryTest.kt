@@ -5,7 +5,11 @@ import androidx.test.core.app.ApplicationProvider
 import com.google.common.truth.Truth.assertThat
 import com.pocketpets.app.data.db.AppDatabase
 import com.pocketpets.app.domain.Species
+import com.pocketpets.app.domain.behavior.CatState
+import com.pocketpets.app.domain.behavior.PetEnvironment
+import com.pocketpets.app.domain.behavior.Position
 import com.pocketpets.app.testing.FakeClock
+import com.pocketpets.app.ui.sprite.Direction
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.Instant
@@ -28,7 +32,7 @@ class PetRepositoryTest {
                 .inMemoryDatabaseBuilder(ctx, AppDatabase::class.java)
                 .allowMainThreadQueries()
                 .build()
-        repo = PetRepository(db.petDao(), db.careEventDao(), clock)
+        repo = PetRepository(db.petDao(), db.careEventDao(), db.petEnvironmentDao(), clock)
     }
 
     @After fun teardown() {
@@ -138,5 +142,93 @@ class PetRepositoryTest {
             assertThat(repo.observeActive().first()!!.id).isEqualTo(b)
             repo.setActive(a)
             assertThat(repo.observeActive().first()!!.id).isEqualTo(a)
+        }
+
+    @Test fun `saveEnvironment then getEnvironment round-trips per pet`() =
+        runTest {
+            val a = repo.adopt("A", Species.CAT)
+            val b = repo.adopt("B", Species.CAT)
+
+            val envA =
+                PetEnvironment(
+                    catPosition = Position(80f, 90f),
+                    catFacing = Direction.WEST,
+                    catState = CatState.Lying,
+                    bowlPosition = Position(20f, 30f),
+                    bowlFilled = true,
+                    toyPosition = Position(40f, 50f),
+                )
+            val envB =
+                PetEnvironment(
+                    catPosition = Position(120f, 100f),
+                    catFacing = Direction.SOUTH,
+                    catState = CatState.Idle,
+                    bowlPosition = null,
+                    bowlFilled = false,
+                    toyPosition = null,
+                )
+
+            repo.saveEnvironment(a, envA)
+            repo.saveEnvironment(b, envB)
+            assertThat(repo.getEnvironment(a)).isEqualTo(envA)
+            assertThat(repo.getEnvironment(b)).isEqualTo(envB)
+        }
+
+    @Test fun `getEnvironment returns null for unknown pet`() =
+        runTest {
+            assertThat(repo.getEnvironment(999L)).isNull()
+        }
+
+    @Test fun `saveEnvironment overwrites prior state for same pet`() =
+        runTest {
+            val id = repo.adopt("A", Species.CAT)
+            val first =
+                PetEnvironment(
+                    catPosition = Position(10f, 20f),
+                    catFacing = Direction.NORTH,
+                    catState = CatState.Walking,
+                    bowlPosition = null,
+                    bowlFilled = false,
+                    toyPosition = null,
+                )
+            val second = first.copy(bowlFilled = true)
+            repo.saveEnvironment(id, first)
+            repo.saveEnvironment(id, second)
+            assertThat(repo.getEnvironment(id)).isEqualTo(second)
+        }
+
+    @Test fun `saveEnvironment collapses transient Eating to Idle before storing`() =
+        runTest {
+            val id = repo.adopt("A", Species.CAT)
+            val midEating =
+                PetEnvironment(
+                    catPosition = Position(40f, 160f),
+                    catFacing = Direction.SOUTH,
+                    catState = CatState.Eating,
+                    bowlPosition = null,
+                    bowlFilled = false,
+                    toyPosition = null,
+                )
+            repo.saveEnvironment(id, midEating)
+            // Eating/Playing have no exit timer once their stateUntil is lost.
+            // The repository sanitises them to Idle on save so reads never see
+            // a state with no exit condition.
+            assertThat(repo.getEnvironment(id)?.catState).isEqualTo(CatState.Idle)
+        }
+
+    @Test fun `saveEnvironment collapses transient Playing to Idle before storing`() =
+        runTest {
+            val id = repo.adopt("A", Species.CAT)
+            val midPlaying =
+                PetEnvironment(
+                    catPosition = Position(60f, 70f),
+                    catFacing = Direction.EAST,
+                    catState = CatState.Playing,
+                    bowlPosition = null,
+                    bowlFilled = false,
+                    toyPosition = Position(60f, 70f),
+                )
+            repo.saveEnvironment(id, midPlaying)
+            assertThat(repo.getEnvironment(id)?.catState).isEqualTo(CatState.Idle)
         }
 }

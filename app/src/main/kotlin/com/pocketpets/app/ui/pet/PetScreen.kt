@@ -304,6 +304,7 @@ fun PetScreen(
                                     val dy = with(density) { dragAmountPx.y.toDp().value }
                                     vm.onBowlMoved(Position(current.x + dx, current.y + dy))
                                 },
+                                onDragEnd = vm::onBowlDragEnded,
                             )
                         is FloorSprite.Toy ->
                             state.world.toy?.let { toyPos ->
@@ -618,6 +619,7 @@ private fun BowlSprite(
     bowlFilled: Boolean,
     density: Density,
     onDrag: (Offset) -> Unit,
+    onDragEnd: () -> Unit,
 ) {
     Image(
         painter =
@@ -641,6 +643,8 @@ private fun BowlSprite(
                             change.consume()
                             onDrag(dragAmountPx)
                         },
+                        onDragEnd = onDragEnd,
+                        onDragCancel = onDragEnd,
                     )
                 },
     )

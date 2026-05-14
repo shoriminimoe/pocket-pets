@@ -13,6 +13,7 @@ import com.pocketpets.app.domain.behavior.CatBehaviorRules
 import com.pocketpets.app.domain.behavior.CatState
 import com.pocketpets.app.domain.behavior.HabitatBounds
 import com.pocketpets.app.domain.behavior.HabitatWorld
+import com.pocketpets.app.domain.behavior.PetEnvironment
 import com.pocketpets.app.domain.behavior.Position
 import com.pocketpets.app.domain.speech.Phrase
 import com.pocketpets.app.domain.speech.SpeechBank
@@ -26,7 +27,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -76,6 +76,14 @@ class PetViewModel(
     @Volatile private var bowlClampBounds: HabitatBounds = defaultBowlBounds
 
     @Volatile private var currentMood: Mood = Mood.IDLE
+
+    /**
+     * Id of the pet whose environment is currently materialised in
+     * [behaviorFlow]/[_world]. Tracked so the [observeActive] collector can
+     * persist the *outgoing* pet's state under its own id before loading the
+     * incoming pet's saved environment.
+     */
+    @Volatile private var lastActivePetId: Long? = null
 
     /**
      * The cat's behaviour state, advanced by the frame ticker via
@@ -155,30 +163,27 @@ class PetViewModel(
                 }
             }
         }
-        // Reset transient per-pet state when the active pet changes. The
-        // ViewModel is scoped to the navigation entry, not the pet, so the
-        // previous pet's bowl/toy/cat-position/speech would otherwise carry
-        // over on switch. habitatAnchors gets reset too: anchors.bowl is
-        // derived from the pet's bowlPosition by setHabitat/onBowlMoved, and
-        // CatBehaviorRules uses it to steer a hungry cat to the bowl — leaving
-        // it stale would send the new pet toward where the previous pet's
-        // bowl was. PetScreen's LaunchedEffect re-derives the anchor for the
-        // current screen layout when it next fires. drop(1) skips whatever
-        // arrives first (active pet id, or `null` if the row isn't ready) so a
-        // stray reset doesn't fire on the initial subscription; if one did,
-        // it would be a no-op anyway since the VM constructs these fields at
-        // the same defaults.
+        // Persist-and-restore the per-pet environment whenever the active pet
+        // changes. The ViewModel is scoped to the navigation entry, not the
+        // pet, so without this hook the previous pet's bowl/toy/cat-position
+        // would either carry over (silent shared state) or be wiped to defaults
+        // (the user's complaint that motivated this loader). habitatAnchors is
+        // also rewound to defaults; PetScreen's LaunchedEffect, which is keyed
+        // on pet?.id, will call setHabitat again and re-derive the anchor from
+        // the freshly-loaded bowlPosition for the new pet.
         scope.launch {
             repo
                 .observeActive()
                 .map { it?.id }
                 .distinctUntilChanged()
-                .drop(1)
-                .collect {
-                    _world.value = HabitatWorld()
-                    behaviorFlow.value = freshBehavior()
-                    currentPhrase.value = null
-                    habitatAnchors = defaultAnchors
+                .collect { newId ->
+                    val oldId = lastActivePetId
+                    if (oldId != null && oldId != newId) {
+                        repo.saveEnvironment(oldId, currentEnvironment())
+                    }
+                    val saved = if (newId != null) repo.getEnvironment(newId) else null
+                    applyEnvironment(saved)
+                    lastActivePetId = newId
                 }
         }
         // Side-effect dispatch on state transitions. Observes behaviorFlow and
@@ -194,18 +199,71 @@ class PetViewModel(
                         current.state == CatState.Eating -> {
                             _world.value = _world.value.copy(bowlFilled = false)
                             withActive { repo.feed(it) }
+                            persistEnvironment()
                         }
                         current.state == CatState.Playing -> {
                             withActive { repo.pet(it) }
                         }
                         before.state == CatState.Playing && current.state == CatState.Idle -> {
                             _world.value = _world.value.copy(toy = null)
+                            persistEnvironment()
                         }
                     }
                 }
                 prev = current
             }
         }
+    }
+
+    private fun currentEnvironment(): PetEnvironment {
+        val b = behaviorFlow.value
+        val w = _world.value
+        // Transient Eating/Playing states are collapsed to Idle by the
+        // repository's saveEnvironment; we don't sanitise here so the snapshot
+        // faithfully reflects what's on screen at capture time.
+        return PetEnvironment(
+            catPosition = b.position,
+            catFacing = b.facing,
+            catState = b.state,
+            bowlPosition = w.bowlPosition,
+            bowlFilled = w.bowlFilled,
+            toyPosition = w.toy,
+        )
+    }
+
+    private fun applyEnvironment(env: PetEnvironment?) {
+        currentPhrase.value = null
+        habitatAnchors = defaultAnchors
+        if (env == null) {
+            behaviorFlow.value = freshBehavior()
+            _world.value = HabitatWorld()
+        } else {
+            behaviorFlow.value =
+                freshBehavior().copy(
+                    state = env.catState,
+                    position = env.catPosition,
+                    target = env.catPosition,
+                    facing = env.catFacing,
+                )
+            _world.value =
+                HabitatWorld(
+                    bowlFilled = env.bowlFilled,
+                    toy = env.toyPosition,
+                    bowlPosition = env.bowlPosition,
+                )
+        }
+    }
+
+    /**
+     * Fire-and-forget save of the active pet's current environment. Called
+     * from user actions that mutate `_world` so the state survives an app
+     * restart (or process death) without waiting for the next pet switch.
+     * No-op if no pet has been activated yet.
+     */
+    private fun persistEnvironment() {
+        val id = lastActivePetId ?: return
+        val env = currentEnvironment()
+        scope.launch { repo.saveEnvironment(id, env) }
     }
 
     fun setHabitat(
@@ -238,10 +296,20 @@ class PetViewModel(
      * `habitatAnchors.bowl.x` is intentionally not updated here — only the
      * `bowl.y` floor reference (set by [setHabitat]) participates in cat
      * targeting after first measurement.
+     *
+     * Deliberately does NOT persist: Compose's drag gesture fires this once
+     * per pointer delta (tens of times per second). Persistence happens at
+     * the drag boundary via [onBowlDragEnded], or implicitly on the next pet
+     * switch / world-mutating action.
      */
     fun onBowlMoved(position: Position) {
         val clamped = bowlClampBounds.clamp(position)
         _world.value = _world.value.copy(bowlPosition = clamped)
+    }
+
+    /** Called when the user finishes dragging the bowl. Persists the final position. */
+    fun onBowlDragEnded() {
+        persistEnvironment()
     }
 
     fun feed() = withActive { repo.feed(it) }
@@ -264,6 +332,7 @@ class PetViewModel(
 
     fun onFoodDroppedOnBowl() {
         _world.value = _world.value.copy(bowlFilled = true)
+        persistEnvironment()
     }
 
     fun onScoopDroppedOnPoop(
@@ -272,6 +341,7 @@ class PetViewModel(
 
     fun onToyDropped(position: Position) {
         _world.value = _world.value.copy(toy = position)
+        persistEnvironment()
     }
 
     fun onBrushDroppedOnCat() = withActive { repo.groom(it) }

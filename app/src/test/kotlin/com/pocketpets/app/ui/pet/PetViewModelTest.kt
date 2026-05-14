@@ -6,6 +6,7 @@ import com.pocketpets.app.domain.Mood
 import com.pocketpets.app.domain.Pet
 import com.pocketpets.app.domain.PetStats
 import com.pocketpets.app.domain.Species
+import com.pocketpets.app.domain.behavior.PetEnvironment
 import com.pocketpets.app.domain.speech.CatSpeech
 import com.pocketpets.app.testing.FakeClock
 import kotlinx.coroutines.CoroutineScope
@@ -47,6 +48,7 @@ class PetViewModelTest {
     ) : PetRepo {
         val activeFlow = MutableStateFlow(initial)
         val calls = mutableListOf<String>()
+        val environments = mutableMapOf<Long, PetEnvironment>()
 
         override fun observeActive(): Flow<Pet?> = activeFlow
 
@@ -83,6 +85,15 @@ class PetViewModelTest {
 
         override suspend fun runDecayTick(id: Long) {
             calls += "tick:$id"
+        }
+
+        override suspend fun getEnvironment(id: Long): PetEnvironment? = environments[id]
+
+        override suspend fun saveEnvironment(
+            id: Long,
+            env: PetEnvironment,
+        ) {
+            environments[id] = env
         }
     }
 
@@ -418,7 +429,7 @@ class PetViewModelTest {
             }
         }
 
-    @Test fun `switching active pet resets world, behavior, and active phrase`() =
+    @Test fun `switching active pet preserves each pet's environment state`() =
         runTest {
             val testScope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
             val repo = FakeRepo(samplePet(id = 1))
@@ -426,7 +437,7 @@ class PetViewModelTest {
             try {
                 vm.state.first { it.pet != null }
 
-                // Dirty the per-pet environment state for pet 1.
+                // Dirty pet 1's environment.
                 vm.setHabitat(
                     bounds =
                         com.pocketpets.app.domain.behavior
@@ -445,48 +456,139 @@ class PetViewModelTest {
                             .HabitatBounds(0f, 0f, 336f, 268f),
                 )
                 vm.onFoodDroppedOnBowl()
-                vm.onToyDropped(
+                val pet1Toy =
                     com.pocketpets.app.domain.behavior
-                        .Position(50f, 60f),
-                )
-                vm.onBowlMoved(
+                        .Position(50f, 60f)
+                vm.onToyDropped(pet1Toy)
+                val pet1Bowl =
                     com.pocketpets.app.domain.behavior
-                        .Position(100f, 120f),
-                )
-                vm.talk()
-                vm.state.first {
-                    it.world.bowlFilled &&
-                        it.world.toy != null &&
-                        it.world.bowlPosition != null &&
-                        it.activePhrase != null
-                }
-                val movedPosition =
+                        .Position(100f, 120f)
+                vm.onBowlMoved(pet1Bowl)
+                val pet1CatPos =
                     com.pocketpets.app.domain.behavior
                         .Position(200f, 175f)
                 vm.behaviorFlow.value =
                     vm.behaviorFlow.value.copy(
-                        position = movedPosition,
-                        target = movedPosition,
+                        position = pet1CatPos,
+                        target = pet1CatPos,
                     )
+                vm.state.first {
+                    it.world.bowlFilled &&
+                        it.world.toy == pet1Toy &&
+                        it.world.bowlPosition == pet1Bowl &&
+                        it.behavior?.position == pet1CatPos
+                }
 
-                // Switch to a different pet — same FakeRepo, new pet emission.
+                // Switch to pet 2 — fresh slate (no saved environment yet).
                 repo.activeFlow.value = samplePet(id = 2)
-
-                val afterSwitch = vm.state.first { it.pet?.id == 2L }
-                assertThat(afterSwitch.world.bowlFilled).isFalse()
-                assertThat(afterSwitch.world.toy).isNull()
-                assertThat(afterSwitch.world.bowlPosition).isNull()
-                assertThat(afterSwitch.activePhrase).isNull()
-                assertThat(afterSwitch.behavior?.state)
+                val pet2State =
+                    vm.state.first {
+                        it.pet?.id == 2L &&
+                            !it.world.bowlFilled &&
+                            it.world.toy == null &&
+                            it.world.bowlPosition == null
+                    }
+                assertThat(pet2State.behavior?.state)
                     .isEqualTo(com.pocketpets.app.domain.behavior.CatState.Idle)
-                // FakeClock is frozen, so the frame ticker's dtSec is 0 and
-                // CatBehaviorRules.tick returns the input unchanged — the
-                // reset position is the value the assertion can rely on.
-                assertThat(afterSwitch.behavior?.position)
-                    .isEqualTo(
+
+                // Dirty pet 2's environment differently.
+                val pet2Toy =
+                    com.pocketpets.app.domain.behavior
+                        .Position(10f, 20f)
+                vm.onToyDropped(pet2Toy)
+                vm.state.first { it.world.toy == pet2Toy }
+
+                // Switch back to pet 1 — pet 1's saved environment should restore.
+                repo.activeFlow.value = samplePet(id = 1)
+                val pet1Restored =
+                    vm.state.first {
+                        it.pet?.id == 1L &&
+                            it.world.bowlFilled &&
+                            it.world.toy == pet1Toy &&
+                            it.world.bowlPosition == pet1Bowl
+                    }
+                assertThat(pet1Restored.behavior?.position).isEqualTo(pet1CatPos)
+
+                // Switch to pet 2 again — pet 2's saved environment should restore.
+                repo.activeFlow.value = samplePet(id = 2)
+                val pet2Restored =
+                    vm.state.first {
+                        it.pet?.id == 2L && it.world.toy == pet2Toy
+                    }
+                assertThat(pet2Restored.world.bowlFilled).isFalse()
+                assertThat(pet2Restored.world.bowlPosition).isNull()
+            } finally {
+                testScope.cancel()
+            }
+        }
+
+    @Test fun `clearing the active pet saves its environment under the old id`() =
+        runTest {
+            val testScope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
+            val repo = FakeRepo(samplePet(id = 1))
+            val vm = newVm(repo, testScope)
+            try {
+                vm.state.first { it.pet != null }
+                val toyPos =
+                    com.pocketpets.app.domain.behavior
+                        .Position(70f, 80f)
+                vm.onToyDropped(toyPos)
+                vm.state.first { it.world.toy == toyPos }
+
+                // No active pet — the collector should still save pet 1's
+                // current state before applying defaults.
+                repo.activeFlow.value = null
+                vm.state.first { it.pet == null }
+                assertThat(repo.environments[1L]?.toyPosition).isEqualTo(toyPos)
+
+                // Re-activating pet 1 should restore the saved state.
+                repo.activeFlow.value = samplePet(id = 1)
+                val restored = vm.state.first { it.pet?.id == 1L && it.world.toy == toyPos }
+                assertThat(restored.world.toy).isEqualTo(toyPos)
+            } finally {
+                testScope.cancel()
+            }
+        }
+
+    @Test fun `onBowlMoved does not persist on each delta, only onBowlDragEnded does`() =
+        runTest {
+            val testScope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
+            val repo = FakeRepo(samplePet(id = 1))
+            val vm = newVm(repo, testScope)
+            try {
+                vm.state.first { it.pet != null }
+                vm.setHabitat(
+                    bounds =
                         com.pocketpets.app.domain.behavior
-                            .Position(120f, 100f),
+                            .HabitatBounds(0f, 0f, 240f, 200f),
+                    anchors =
+                        com.pocketpets.app.domain.behavior.Anchors(
+                            bed =
+                                com.pocketpets.app.domain.behavior
+                                    .Position(180f, 160f),
+                            bowl =
+                                com.pocketpets.app.domain.behavior
+                                    .Position(40f, 160f),
+                        ),
+                    bowlBounds =
+                        com.pocketpets.app.domain.behavior
+                            .HabitatBounds(0f, 0f, 336f, 268f),
+                )
+                // Many drag-delta events — none should reach the repo.
+                repeat(20) { i ->
+                    vm.onBowlMoved(
+                        com.pocketpets.app.domain.behavior
+                            .Position(10f + i, 20f + i),
                     )
+                }
+                assertThat(repo.environments[1L]).isNull()
+
+                // Drag-end fires one save with the final position.
+                vm.onBowlDragEnded()
+                val finalPos =
+                    com.pocketpets.app.domain.behavior
+                        .Position(29f, 39f)
+                assertThat(repo.environments[1L]?.bowlPosition).isEqualTo(finalPos)
             } finally {
                 testScope.cancel()
             }
