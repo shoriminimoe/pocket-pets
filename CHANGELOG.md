@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.5.0](https://github.com/shoriminimoe/pocket-pets/compare/v0.4.2...v0.5.0) (2026-05-14)
+
+
+### Features
+
+* show app version on settings screen ([fac14e6](https://github.com/shoriminimoe/pocket-pets/commit/fac14e6d42127d3ad61c1fa9a30af29518b08def))
+* show app version on settings screen ([ccdae3d](https://github.com/shoriminimoe/pocket-pets/commit/ccdae3dd0f5ca5e1bdf3b38472a9702ac0adbe49))
+
+
+### Bug Fixes
+
+* persist bowl on drag-end, sanitise transient state at repo boundary ([bc6aab5](https://github.com/shoriminimoe/pocket-pets/commit/bc6aab556d6b42a2c835ed2b7fbe8d2205ebf20c))
+* persist per-pet environment state across switches ([f0d36ea](https://github.com/shoriminimoe/pocket-pets/commit/f0d36ea46c44597bee04143f7b7fd02e09489c63))
+* persist per-pet environment state across switches ([72d33b2](https://github.com/shoriminimoe/pocket-pets/commit/72d33b2879c91e96e4539d6e4b819f32b9681680))
+
 ## [0.4.2](https://github.com/shoriminimoe/pocket-pets/compare/v0.4.1...v0.4.2) (2026-05-13)
 
 
